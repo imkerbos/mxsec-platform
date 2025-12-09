@@ -1,0 +1,17 @@
+# 开发模式 - 使用 vite dev server
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 安装依赖
+COPY ui/package.json ui/package-lock.json ./
+RUN npm ci
+
+# 复制源代码
+COPY ui/ .
+
+# 暴露端口
+EXPOSE 3000
+
+# 启动开发服务器
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

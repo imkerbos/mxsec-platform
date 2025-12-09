@@ -1,0 +1,69 @@
+# Server 配置文件示例
+# 复制此文件为 server.yaml 并根据实际情况修改配置
+
+# 服务器配置
+server:
+  # gRPC 服务监听地址（AgentCenter）
+  grpc:
+    host: "0.0.0.0"
+    port: 6751
+  
+  # HTTP 服务监听地址（Manager，可选）
+  http:
+    host: "0.0.0.0"
+    port: 8080
+
+# 数据库配置
+database:
+  # 数据库类型：mysql 或 postgres
+  type: "mysql"
+  
+  # MySQL 配置
+  mysql:
+    host: "localhost"
+    port: 3306
+    user: "mxsec_user"
+    password: "mxsec_password"
+    database: "mxsec"
+    charset: "utf8mb4"
+    parse_time: true
+    loc: "Local"
+    max_idle_conns: 10
+    max_open_conns: 100
+    conn_max_lifetime: "1h"
+  
+  # PostgreSQL 配置
+  postgres:
+    host: "localhost"
+    port: 5432
+    user: "mxsec_user"
+    password: "mxsec_password"
+    database: "mxsec"
+    sslmode: "disable"
+    timezone: "Asia/Shanghai"
+    max_idle_conns: 10
+    max_open_conns: 100
+    conn_max_lifetime: "1h"
+
+# mTLS 配置
+mtls:
+  # CA 证书路径
+  ca_cert: "certs/ca.crt"
+  
+  # Server 证书路径
+  server_cert: "certs/server.crt"
+  
+  # Server 私钥路径
+  server_key: "certs/server.key"
+
+# 日志配置
+log:
+  level: "info"  # debug, info, warn, error
+  format: "json"  # json 或 console
+  file: "/var/log/mxsec-server/server.log"
+  max_age: 30  # 保留天数
+
+# Agent 配置（下发到 Agent）
+agent:
+  heartbeat_interval: 60  # 心跳间隔（秒）
+  work_dir: "/var/lib/mxsec-agent"

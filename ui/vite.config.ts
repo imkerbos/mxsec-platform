@@ -1,0 +1,24 @@
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import { resolve } from 'path'
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [vue()],
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+    },
+  },
+  server: {
+    port: 3000,
+    host: '0.0.0.0', // 允许外部访问
+    proxy: {
+      '/api': {
+        // 在 Docker 容器内，使用服务名访问；本地开发时使用 localhost
+        target: process.env.VITE_API_TARGET || 'http://manager:8080',
+        changeOrigin: true,
+      },
+    },
+  },
+})

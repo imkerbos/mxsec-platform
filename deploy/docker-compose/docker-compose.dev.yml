@@ -1,0 +1,82 @@
+version: '3.8'
+
+# 开发环境 Docker Compose 配置
+# 使用方式: docker-compose -f docker-compose.dev.yml up
+# 注意：使用宿主机现有的 MySQL（127.0.0.1:3306, root/123456）
+
+services:
+  manager:
+    build:
+      context: ../..
+      dockerfile: deploy/docker-compose/Dockerfile.manager.dev
+    container_name: mxsec-manager-dev
+    restart: unless-stopped
+    # macOS Docker Desktop 不支持 host 网络模式，使用端口映射
+    # 访问宿主机 MySQL 使用 host.docker.internal（macOS/Windows）或 172.17.0.1（Linux）
+    ports:
+      - "8080:8080"
+    volumes:
+      # 挂载源代码，支持热重载（需要重新编译）
+      - ../../:/workspace:rw
+      # 挂载配置文件
+      - ./configs/server.dev.yaml:/etc/mxcsec-platform/server.yaml:ro
+      # 挂载证书
+      - ./certs:/etc/mxcsec-platform/certs:ro
+    working_dir: /workspace
+    environment:
+      - TZ=Asia/Shanghai
+      - GO_ENV=development
+    # 开发模式：优先使用 go run（简单可靠），如果 Air 可用则使用 Air
+    command: >
+      sh -c "
+        cd /workspace && 
+        # 确保 tmp 目录存在
+        mkdir -p tmp &&
+        # 先运行 go mod tidy 确保依赖正确
+        go mod tidy &&
+        if command -v air > /dev/null 2>&1 && [ -f .air.toml ]; then
+          echo '使用 Air 热重载模式...';
+          air -c .air.toml
+        else
+          echo '使用 go run 模式（修改代码后需要手动重启容器）...';
+          go run ./cmd/server/manager -config /etc/mxcsec-platform/server.yaml
+        fi
+      "
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    # 开发环境不需要资源限制
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '2'
+    #       memory: 2G
+
+  ui:
+    build:
+      context: ../..
+      dockerfile: deploy/docker-compose/Dockerfile.ui.dev
+    container_name: mxsec-ui-dev
+    restart: unless-stopped
+    # macOS Docker Desktop 不支持 host 网络模式，使用端口映射
+    ports:
+      - "3000:3000"
+    volumes:
+      # 挂载源代码，支持热重载
+      - ../../ui:/app:rw
+      - /app/node_modules
+    working_dir: /app
+    environment:
+      - TZ=Asia/Shanghai
+      - NODE_ENV=development
+    # 开发模式：使用 vite dev server（支持热重载）
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
