@@ -27,6 +27,29 @@ export interface Host {
   baseline_score?: number
   baseline_pass_rate?: number
   tags?: string[]
+  is_container?: boolean // 是否为容器环境
+  container_id?: string // 容器ID
+}
+
+// 磁盘信息类型（用于 Host 的 disk_info 字段）
+export interface DiskInfo {
+  device: string // /dev/sda1
+  mount_point: string // /、/home 等
+  file_system: string // ext4、xfs 等
+  total_size: number // 总大小（字节）
+  used_size: number // 已用大小（字节）
+  available_size: number // 可用大小（字节）
+  usage_percent: number // 使用率（百分比）
+}
+
+// 网卡信息类型（用于 Host 的 network_interfaces 字段）
+export interface NetworkInterfaceInfo {
+  interface_name: string // eth0、ens33 等
+  mac_address?: string
+  ipv4_addresses?: string[]
+  ipv6_addresses?: string[]
+  mtu?: number
+  state?: string // up、down
 }
 
 export interface HostDetail extends Host {
@@ -42,7 +65,16 @@ export interface HostDetail extends Host {
   memory_usage?: string
   dns_servers?: string[]
   device_serial?: string
+  device_id?: string
+  public_ipv4?: string[]
+  public_ipv6?: string[]
+  business_line?: string
+  system_boot_time?: string
+  agent_start_time?: string
+  last_active_time?: string
   tags?: string[]
+  disk_info?: string // JSON 字符串，解析后为 DiskInfo[]
+  network_interfaces?: string // JSON 字符串，解析后为 NetworkInterfaceInfo[]
 }
 
 // 策略相关类型

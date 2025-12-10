@@ -17,6 +17,30 @@ export interface HostRiskDistribution {
   high_risk_baselines: number
 }
 
+export interface HostRiskStatistics {
+  alerts: {
+    total: number
+    critical: number
+    high: number
+    medium: number
+    low: number
+  }
+  vulnerabilities: {
+    total: number
+    critical: number
+    high: number
+    medium: number
+    low: number
+  }
+  baseline: {
+    total: number
+    critical: number
+    high: number
+    medium: number
+    low: number
+  }
+}
+
 export const hostsApi = {
   // 获取主机列表
   list: (params?: {
@@ -24,6 +48,9 @@ export const hostsApi = {
     page_size?: number
     os_family?: string
     status?: string
+    business_line?: string
+    search?: string // 搜索关键词（主机名、host_id等）
+    is_container?: boolean // 容器/主机类型筛选
   }) => {
     return apiClient.get<PaginatedResponse<Host>>('/hosts', { params })
   },
@@ -64,5 +91,15 @@ export const hostsApi = {
   // 更新主机标签
   updateTags: (hostId: string, tags: string[]) => {
     return apiClient.put(`/hosts/${hostId}/tags`, { tags })
+  },
+
+  // 获取主机风险统计
+  getRiskStatistics: (hostId: string) => {
+    return apiClient.get<HostRiskStatistics>(`/hosts/${hostId}/risk-statistics`)
+  },
+
+  // 更新主机业务线
+  updateBusinessLine: (hostId: string, businessLine: string) => {
+    return apiClient.put(`/hosts/${hostId}/business-line`, { business_line: businessLine })
   },
 }

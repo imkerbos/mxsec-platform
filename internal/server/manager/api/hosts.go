@@ -47,6 +47,9 @@ func (h *HostsHandler) ListHosts(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 	osFamily := c.Query("os_family")
 	status := c.Query("status")
+	businessLine := c.Query("business_line")  // 业务线筛选
+	search := c.Query("search")               // 搜索关键词
+	isContainerStr := c.Query("is_container") // 容器/主机类型筛选
 
 	// 构建查询
 	query := h.db.Model(&model.Host{})
@@ -57,6 +60,19 @@ func (h *HostsHandler) ListHosts(c *gin.Context) {
 	}
 	if status != "" {
 		query = query.Where("status = ?", status)
+	}
+	if businessLine != "" {
+		query = query.Where("business_line = ?", businessLine)
+	}
+	// 容器/主机类型筛选
+	if isContainerStr != "" {
+		isContainer := isContainerStr == "true"
+		query = query.Where("is_container = ?", isContainer)
+	}
+	// 搜索功能：支持按主机名、host_id 搜索
+	if search != "" {
+		searchPattern := "%" + search + "%"
+		query = query.Where("hostname LIKE ? OR host_id LIKE ?", searchPattern, searchPattern)
 	}
 
 	// 计算总数
@@ -227,6 +243,8 @@ func (h *HostsHandler) GetHost(c *gin.Context) {
 		"arch":             host.Arch,
 		"ipv4":             host.IPv4,
 		"ipv6":             host.IPv6,
+		"public_ipv4":      host.PublicIPv4,
+		"public_ipv6":      host.PublicIPv6,
 		"status":           string(host.Status),
 		"last_heartbeat":   host.LastHeartbeat,
 		"created_at":       host.CreatedAt,
@@ -254,6 +272,12 @@ func (h *HostsHandler) GetHost(c *gin.Context) {
 	if host.DeviceSerial != "" {
 		responseData["device_serial"] = host.DeviceSerial
 	}
+	if host.DeviceID != "" {
+		responseData["device_id"] = host.DeviceID
+	} else {
+		// 如果 device_id 为空，使用 host_id
+		responseData["device_id"] = host.HostID
+	}
 	if host.CPUInfo != "" {
 		responseData["cpu_info"] = host.CPUInfo
 	}
@@ -272,8 +296,35 @@ func (h *HostsHandler) GetHost(c *gin.Context) {
 	if len(host.DNSServers) > 0 {
 		responseData["dns_servers"] = host.DNSServers
 	}
+	if host.BusinessLine != "" {
+		responseData["business_line"] = host.BusinessLine
+	}
+	if host.SystemBootTime != nil {
+		responseData["system_boot_time"] = host.SystemBootTime
+	}
+	if host.AgentStartTime != nil {
+		responseData["agent_start_time"] = host.AgentStartTime
+	}
+	if host.LastActiveTime != nil {
+		responseData["last_active_time"] = host.LastActiveTime
+	} else {
+		// 如果 last_active_time 为空，使用 last_heartbeat
+		responseData["last_active_time"] = host.LastHeartbeat
+	}
 	if len(host.Tags) > 0 {
 		responseData["tags"] = host.Tags
+	}
+	// 添加磁盘和网卡信息（JSON 字符串）
+	if host.DiskInfo != "" {
+		responseData["disk_info"] = host.DiskInfo
+	}
+	if host.NetworkInterfaces != "" {
+		responseData["network_interfaces"] = host.NetworkInterfaces
+	}
+	// 添加容器标识
+	responseData["is_container"] = host.IsContainer
+	if host.ContainerID != "" {
+		responseData["container_id"] = host.ContainerID
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -401,5 +452,150 @@ func (h *HostsHandler) GetHostMetrics(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": metrics,
+	})
+}
+
+// HostRiskStatistics 主机风险统计
+type HostRiskStatistics struct {
+	// 安全告警统计
+	Alerts struct {
+		Total    int64 `json:"total"`    // 未处理告警总数
+		Critical int64 `json:"critical"` // 严重
+		High     int64 `json:"high"`     // 高危
+		Medium   int64 `json:"medium"`   // 中危
+		Low      int64 `json:"low"`      // 低危
+	} `json:"alerts"`
+	// 漏洞风险统计
+	Vulnerabilities struct {
+		Total    int64 `json:"total"`    // 未处理高可利用漏洞总数
+		Critical int64 `json:"critical"` // 严重
+		High     int64 `json:"high"`     // 高危
+		Medium   int64 `json:"medium"`   // 中危
+		Low      int64 `json:"low"`      // 低危
+	} `json:"vulnerabilities"`
+	// 基线风险统计
+	Baseline struct {
+		Total    int64 `json:"total"`    // 待加固基线总数
+		Critical int64 `json:"critical"` // 严重（基线中通常没有critical，但保留字段）
+		High     int64 `json:"high"`     // 高危
+		Medium   int64 `json:"medium"`   // 中危
+		Low      int64 `json:"low"`      // 低危
+	} `json:"baseline"`
+}
+
+// GetHostRiskStatistics 获取主机风险统计
+// GET /api/v1/hosts/:host_id/risk-statistics
+func (h *HostsHandler) GetHostRiskStatistics(c *gin.Context) {
+	hostID := c.Param("host_id")
+
+	var stats HostRiskStatistics
+
+	// 查询基线风险统计（从 scan_results 表）
+	var baselineResults []struct {
+		Severity string
+		Count    int64
+	}
+	h.db.Model(&model.ScanResult{}).
+		Select("severity, COUNT(*) as count").
+		Where("host_id = ? AND status = ?", hostID, "fail").
+		Group("severity").
+		Scan(&baselineResults)
+
+	for _, r := range baselineResults {
+		switch r.Severity {
+		case "critical":
+			stats.Baseline.Critical = r.Count
+		case "high":
+			stats.Baseline.High = r.Count
+		case "medium":
+			stats.Baseline.Medium = r.Count
+		case "low":
+			stats.Baseline.Low = r.Count
+		}
+		stats.Baseline.Total += r.Count
+	}
+
+	// 安全告警和漏洞风险统计暂时返回0（后续扩展）
+	// TODO: 实现安全告警统计（需要告警数据表）
+	// TODO: 实现漏洞风险统计（需要漏洞数据表）
+
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": stats,
+	})
+}
+
+// UpdateHostBusinessLineRequest 更新主机业务线请求
+type UpdateHostBusinessLineRequest struct {
+	BusinessLine string `json:"business_line"` // 业务线名称（空字符串表示取消绑定）
+}
+
+// UpdateHostBusinessLine 更新主机业务线
+// PUT /api/v1/hosts/:host_id/business-line
+func (h *HostsHandler) UpdateHostBusinessLine(c *gin.Context) {
+	hostID := c.Param("host_id")
+
+	var req UpdateHostBusinessLineRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	// 查询主机
+	var host model.Host
+	if err := h.db.First(&host, "host_id = ?", hostID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{
+				"code":    404,
+				"message": "主机不存在",
+			})
+			return
+		}
+		h.logger.Error("查询主机失败", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "查询主机失败",
+		})
+		return
+	}
+
+	// 如果指定了业务线，验证业务线是否存在
+	if req.BusinessLine != "" {
+		var businessLine model.BusinessLine
+		if err := h.db.Where("name = ? AND enabled = ?", req.BusinessLine, true).First(&businessLine).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"code":    400,
+					"message": "业务线不存在或已禁用",
+				})
+				return
+			}
+			h.logger.Error("查询业务线失败", zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "查询业务线失败",
+			})
+			return
+		}
+	}
+
+	// 更新业务线
+	host.BusinessLine = req.BusinessLine
+	if err := h.db.Save(&host).Error; err != nil {
+		h.logger.Error("更新主机业务线失败", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "更新主机业务线失败",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "更新成功",
+		"data":    host,
 	})
 }

@@ -118,6 +118,7 @@
               </a-button>
               <template #overlay>
                 <a-menu>
+                  <a-menu-item @click="handleBatchBindBusinessLine">批量绑定业务线</a-menu-item>
                   <a-menu-item>批量导入标签</a-menu-item>
                   <a-menu-item>清理离线数据</a-menu-item>
                   <a-menu-item>删除未安装记录</a-menu-item>
@@ -149,11 +150,53 @@
 
       <!-- 搜索区域 -->
       <div class="filter-bar">
+        <a-select
+          v-model:value="filters.business_line"
+          placeholder="业务线"
+          style="width: 150px"
+          allow-clear
+          show-search
+          :filter-option="filterBusinessLineOption"
+        >
+          <a-select-option v-for="bl in businessLines" :key="bl.name" :value="bl.name">
+            {{ bl.name }}
+          </a-select-option>
+        </a-select>
+        <a-select
+          v-model:value="filters.os_family"
+          placeholder="操作系统"
+          style="width: 150px"
+          allow-clear
+        >
+          <a-select-option value="rocky">Rocky Linux</a-select-option>
+          <a-select-option value="centos">CentOS</a-select-option>
+          <a-select-option value="debian">Debian</a-select-option>
+          <a-select-option value="ubuntu">Ubuntu</a-select-option>
+        </a-select>
+        <a-select
+          v-model:value="filters.status"
+          placeholder="状态"
+          style="width: 120px"
+          allow-clear
+        >
+          <a-select-option value="online">在线</a-select-option>
+          <a-select-option value="offline">离线</a-select-option>
+        </a-select>
+        <a-select
+          v-model:value="filters.is_container"
+          placeholder="类型"
+          style="width: 120px"
+          allow-clear
+        >
+          <a-select-option :value="false">主机</a-select-option>
+          <a-select-option :value="true">容器</a-select-option>
+        </a-select>
         <a-input
           v-model:value="filters.search"
-          placeholder="请选择筛选条件并搜索"
+          placeholder="请输入主机名或ID搜索"
           style="width: 300px"
           allow-clear
+          @press-enter="handleSearch"
         >
           <template #prefix>
             <SearchOutlined />
@@ -179,9 +222,14 @@
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.key === 'hostname'">
-          <a-button type="link" @click="handleViewDetail(record)">
-            {{ record.hostname }}
-          </a-button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <a-button type="link" @click="handleViewDetail(record)">
+              {{ record.hostname }}
+            </a-button>
+            <a-tag v-if="record.is_container" color="blue" style="margin: 0;">
+              容器
+            </a-tag>
+          </div>
         </template>
         <template v-else-if="column.key === 'tags'">
           <a-space>
@@ -212,6 +260,39 @@
       </template>
     </a-table>
     </a-card>
+
+    <!-- 批量绑定业务线对话框 -->
+    <a-modal
+      v-model:open="batchBindBusinessLineModalVisible"
+      title="批量绑定业务线"
+      :width="500"
+      @ok="handleConfirmBatchBindBusinessLine"
+      @cancel="handleCancelBatchBindBusinessLine"
+    >
+      <div style="margin-bottom: 16px;">
+        <div style="margin-bottom: 8px; color: rgba(0, 0, 0, 0.65);">
+          已选择 <strong>{{ selectedRowKeys.length }}</strong> 台主机
+        </div>
+      </div>
+      <div style="margin-bottom: 16px;">
+        <div style="margin-bottom: 8px; font-weight: 500;">选择业务线</div>
+        <a-select
+          v-model:value="batchBindBusinessLine"
+          placeholder="请选择业务线"
+          style="width: 100%"
+          show-search
+          allow-clear
+          :filter-option="filterBusinessLineOption"
+        >
+          <a-select-option v-for="bl in businessLines" :key="bl.name" :value="bl.name">
+            {{ bl.name }}
+          </a-select-option>
+        </a-select>
+        <div style="margin-top: 8px; color: rgba(0, 0, 0, 0.45); font-size: 12px;">
+          提示：选择业务线后，所选主机将绑定到该业务线。留空表示取消业务线绑定。
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -234,6 +315,7 @@ import {
 } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { hostsApi, type HostStatusDistribution, type HostRiskDistribution } from '@/api/hosts'
+import { businessLinesApi, type BusinessLine } from '@/api/business-lines'
 import type { Host } from '@/api/types'
 import ScoreDisplay from './components/ScoreDisplay.vue'
 import { message } from 'ant-design-vue'
@@ -247,6 +329,11 @@ const router = useRouter()
 const loading = ref(false)
 const hosts = ref<Host[]>([])
 const selectedRowKeys = ref<string[]>([])
+const businessLines = ref<BusinessLine[]>([])
+
+// 批量绑定业务线
+const batchBindBusinessLineModalVisible = ref(false)
+const batchBindBusinessLine = ref<string>('')
 const statusDistribution = ref<HostStatusDistribution>({
   running: 0,
   abnormal: 0,
@@ -265,8 +352,10 @@ const riskDistribution = ref<HostRiskDistribution>({
 const filters = reactive({
   hostRange: 'all' as string,
   search: '' as string,
+  business_line: undefined as string | undefined,
   os_family: undefined as string | undefined,
   status: undefined as string | undefined,
+  is_container: undefined as boolean | undefined, // 容器/主机类型筛选
 })
 
 const statusTotal = computed(() => {
@@ -392,11 +481,13 @@ const columns = [
     width: 150,
   },
   {
-    title: '地域',
-    dataIndex: 'region',
-    key: 'region',
+    title: '业务线',
+    dataIndex: 'business_line',
+    key: 'business_line',
     width: 120,
-    customRender: () => '-',
+    customRender: ({ record }: { record: Host }) => {
+      return record.business_line || '-'
+    },
   },
   {
     title: '操作系统',
@@ -441,12 +532,26 @@ const columns = [
 const loadHosts = async () => {
   loading.value = true
   try {
-    const response = await hostsApi.list({
+    const params: any = {
       page: pagination.current,
       page_size: pagination.pageSize,
-      os_family: filters.os_family,
-      status: filters.status,
-    })
+    }
+    if (filters.os_family) {
+      params.os_family = filters.os_family
+    }
+    if (filters.status) {
+      params.status = filters.status
+    }
+    if (filters.business_line) {
+      params.business_line = filters.business_line
+    }
+    if (filters.search && filters.search.trim()) {
+      params.search = filters.search.trim()
+    }
+    if (filters.is_container !== undefined) {
+      params.is_container = filters.is_container
+    }
+    const response = await hostsApi.list(params)
     hosts.value = response.items
     pagination.total = response.total
   } catch (error) {
@@ -455,6 +560,21 @@ const loadHosts = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 加载业务线列表
+const loadBusinessLines = async () => {
+  try {
+    const response = await businessLinesApi.list({ enabled: 'true', page_size: 1000 })
+    businessLines.value = response.items
+  } catch (error) {
+    console.error('加载业务线列表失败:', error)
+  }
+}
+
+// 业务线筛选选项过滤
+const filterBusinessLineOption = (input: string, option: any) => {
+  return option.children[0].children.toLowerCase().indexOf(input.toLowerCase()) >= 0
 }
 
 const loadStatusDistribution = async () => {
@@ -488,8 +608,10 @@ const handleSearch = () => {
 const handleReset = () => {
   filters.hostRange = 'all'
   filters.search = ''
+  filters.business_line = undefined
   filters.os_family = undefined
   filters.status = undefined
+  filters.is_container = undefined
   pagination.current = 1
   loadHosts()
 }
@@ -504,7 +626,62 @@ const handleViewDetail = (record: Host) => {
   router.push(`/hosts/${record.host_id}`)
 }
 
+// 批量绑定业务线
+const handleBatchBindBusinessLine = () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先选择要绑定的主机')
+    return
+  }
+  batchBindBusinessLine.value = ''
+  batchBindBusinessLineModalVisible.value = true
+}
+
+// 确认批量绑定业务线
+const handleConfirmBatchBindBusinessLine = async () => {
+  if (selectedRowKeys.value.length === 0) {
+    message.warning('请先选择要绑定的主机')
+    return
+  }
+
+  try {
+    const businessLine = batchBindBusinessLine.value || ''
+    
+    // 批量更新业务线
+    const promises = selectedRowKeys.value.map((hostId) =>
+      hostsApi.updateBusinessLine(hostId, businessLine)
+    )
+    
+    await Promise.all(promises)
+    
+    message.success(`成功绑定 ${selectedRowKeys.value.length} 台主机到业务线`)
+    
+    // 清空选择并关闭对话框
+    selectedRowKeys.value = []
+    batchBindBusinessLineModalVisible.value = false
+    batchBindBusinessLine.value = ''
+    
+    // 刷新主机列表
+    loadHosts()
+  } catch (error: any) {
+    console.error('批量绑定业务线失败:', error)
+    message.error(error?.message || '批量绑定业务线失败，请重试')
+  }
+}
+
+// 取消批量绑定业务线
+const handleCancelBatchBindBusinessLine = () => {
+  batchBindBusinessLineModalVisible.value = false
+  batchBindBusinessLine.value = ''
+}
+
 onMounted(() => {
+  // 从 URL 查询参数读取业务线筛选
+  const route = router.currentRoute.value
+  if (route.query.business_line) {
+    filters.business_line = route.query.business_line as string
+  }
+  
+  loadBusinessLines()
   loadHosts()
   loadStatusDistribution()
   loadRiskDistribution()
