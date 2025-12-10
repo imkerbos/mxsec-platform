@@ -60,4 +60,9 @@ export const hostsApi = {
   }) => {
     return apiClient.get<HostMetrics>(`/hosts/${hostId}/metrics`, { params })
   },
+
+  // 更新主机标签
+  updateTags: (hostId: string, tags: string[]) => {
+    return apiClient.put(`/hosts/${hostId}/tags`, { tags })
+  },
 }

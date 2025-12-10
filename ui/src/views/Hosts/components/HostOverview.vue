@@ -10,34 +10,68 @@
               <div class="info-item">
                 <span class="info-label">操作系统</span>
                 <span class="info-value">
-                  <span v-if="host.os_family || host.os_version">
-                    {{ host.os_family || '未知' }}{{ host.os_family && host.os_version ? ' ' : '' }}{{ host.os_version || '' }}
-                  </span>
+                  <a-tooltip 
+                    v-if="host.os_family || host.os_version"
+                    :title="(host.os_family || '未知') + (host.os_family && host.os_version ? ' ' : '') + (host.os_version || '')"
+                    placement="topLeft"
+                  >
+                    <span 
+                      class="copyable-text"
+                      @click="copyText((host.os_family || '未知') + (host.os_family && host.os_version ? ' ' : '') + (host.os_version || ''), '操作系统')"
+                    >
+                      {{ host.os_family || '未知' }}{{ host.os_family && host.os_version ? ' ' : '' }}{{ host.os_version || '' }}
+                    </span>
+                  </a-tooltip>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
               <div class="info-item">
                 <span class="info-label">主机标签</span>
-                <span class="info-value empty-value">未设置</span>
+                <span class="info-value">
+                  <a-tag v-if="host.tags && host.tags.length > 0" v-for="tag in host.tags" :key="tag" color="blue" style="margin-right: 4px">
+                    {{ tag }}
+                  </a-tag>
+                  <span v-else class="empty-value">未设置</span>
+                  <a-button 
+                    type="link" 
+                    size="small" 
+                    style="padding: 0; margin-left: 8px; height: auto;"
+                    @click="showTagModal = true"
+                  >
+                    {{ host.tags && host.tags.length > 0 ? '编辑' : '设置' }}
+                  </a-button>
+                </span>
               </div>
               <div class="info-item">
                 <span class="info-label">设备型号</span>
                 <span class="info-value">
-                  <span v-if="host.device_model">{{ host.device_model }}</span>
+                  <a-tooltip v-if="host.device_model" :title="host.device_model" placement="topLeft">
+                    <span class="copyable-text" @click="copyText(host.device_model, '设备型号')">
+                      {{ host.device_model }}
+                    </span>
+                  </a-tooltip>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
               <div class="info-item">
                 <span class="info-label">生产商</span>
                 <span class="info-value">
-                  <span v-if="host.manufacturer">{{ host.manufacturer }}</span>
+                  <a-tooltip v-if="host.manufacturer" :title="host.manufacturer" placement="topLeft">
+                    <span class="copyable-text" @click="copyText(host.manufacturer, '生产商')">
+                      {{ host.manufacturer }}
+                    </span>
+                  </a-tooltip>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
               <div class="info-item">
                 <span class="info-label">系统负载</span>
                 <span class="info-value">
-                  <span v-if="host.system_load">{{ host.system_load }}</span>
+                  <a-tooltip v-if="host.system_load" :title="host.system_load" placement="topLeft">
+                    <span class="copyable-text" @click="copyText(host.system_load, '系统负载')">
+                      {{ host.system_load }}
+                    </span>
+                  </a-tooltip>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
@@ -50,45 +84,65 @@
               <div class="info-item">
                 <span class="info-label">私网IPv4</span>
                 <span class="info-value">
-                  <span v-if="host.ipv4 && host.ipv4.length > 0">
-                    {{ host.ipv4[0] }}
+                  <template v-if="host.ipv4 && host.ipv4.length > 0">
+                    <a-tooltip :title="host.ipv4.join(', ')" placement="topLeft">
+                      <span class="copyable-text" @click="copyText(host.ipv4.join(', '), '私网IPv4')">
+                        {{ host.ipv4[0] }}
+                      </span>
+                    </a-tooltip>
                     <a-tag v-if="host.ipv4.length > 1" color="blue" size="small" style="margin-left: 6px">
                       +{{ host.ipv4.length - 1 }}
                     </a-tag>
-                  </span>
+                  </template>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
               <div class="info-item">
                 <span class="info-label">私网IPv6</span>
                 <span class="info-value">
-                  <span v-if="host.ipv6 && host.ipv6.length > 0">
-                    {{ host.ipv6[0] }}
+                  <template v-if="host.ipv6 && host.ipv6.length > 0">
+                    <a-tooltip :title="host.ipv6.join(', ')" placement="topLeft">
+                      <span class="copyable-text" @click="copyText(host.ipv6.join(', '), '私网IPv6')">
+                        {{ host.ipv6[0] }}
+                      </span>
+                    </a-tooltip>
                     <a-tag v-if="host.ipv6.length > 1" color="blue" size="small" style="margin-left: 6px">
                       +{{ host.ipv6.length - 1 }}
                     </a-tag>
-                  </span>
+                  </template>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
               <div class="info-item">
                 <span class="info-label">CPU信息</span>
                 <span class="info-value">
-                  <span v-if="host.cpu_info">{{ host.cpu_info }}</span>
+                  <a-tooltip v-if="host.cpu_info" :title="host.cpu_info" placement="topLeft">
+                    <span class="copyable-text" @click="copyText(host.cpu_info, 'CPU信息')">
+                      {{ host.cpu_info }}
+                    </span>
+                  </a-tooltip>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
               <div class="info-item">
                 <span class="info-label">内存大小</span>
                 <span class="info-value">
-                  <span v-if="host.memory_size">{{ host.memory_size }}</span>
+                  <a-tooltip v-if="host.memory_size" :title="host.memory_size" placement="topLeft">
+                    <span class="copyable-text" @click="copyText(host.memory_size, '内存大小')">
+                      {{ host.memory_size }}
+                    </span>
+                  </a-tooltip>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
               <div class="info-item">
                 <span class="info-label">默认网关</span>
                 <span class="info-value">
-                  <span v-if="host.default_gateway">{{ host.default_gateway }}</span>
+                  <a-tooltip v-if="host.default_gateway" :title="host.default_gateway" placement="topLeft">
+                    <span class="copyable-text" @click="copyText(host.default_gateway, '默认网关')">
+                      {{ host.default_gateway }}
+                    </span>
+                  </a-tooltip>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
@@ -101,7 +155,11 @@
               <div class="info-item">
                 <span class="info-label">网络模式</span>
                 <span class="info-value">
-                  <span v-if="host.network_mode">{{ host.network_mode }}</span>
+                  <a-tooltip v-if="host.network_mode" :title="host.network_mode" placement="topLeft">
+                    <span class="copyable-text" @click="copyText(host.network_mode, '网络模式')">
+                      {{ host.network_mode }}
+                    </span>
+                  </a-tooltip>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
@@ -117,26 +175,38 @@
               <div class="info-item">
                 <span class="info-label">CPU使用率</span>
                 <span class="info-value">
-                  <span v-if="host.cpu_usage">{{ host.cpu_usage }}</span>
+                  <a-tooltip v-if="host.cpu_usage" :title="host.cpu_usage" placement="topLeft">
+                    <span class="copyable-text" @click="copyText(host.cpu_usage, 'CPU使用率')">
+                      {{ host.cpu_usage }}
+                    </span>
+                  </a-tooltip>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
               <div class="info-item">
                 <span class="info-label">内存使用率</span>
                 <span class="info-value">
-                  <span v-if="host.memory_usage">{{ host.memory_usage }}</span>
+                  <a-tooltip v-if="host.memory_usage" :title="host.memory_usage" placement="topLeft">
+                    <span class="copyable-text" @click="copyText(host.memory_usage, '内存使用率')">
+                      {{ host.memory_usage }}
+                    </span>
+                  </a-tooltip>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
               <div class="info-item">
                 <span class="info-label">DNS服务器</span>
                 <span class="info-value">
-                  <span v-if="host.dns_servers && host.dns_servers.length > 0">
-                    {{ host.dns_servers[0] }}
+                  <template v-if="host.dns_servers && host.dns_servers.length > 0">
+                    <a-tooltip :title="host.dns_servers.join(', ')" placement="topLeft">
+                      <span class="copyable-text" @click="copyText(host.dns_servers.join(', '), 'DNS服务器')">
+                        {{ host.dns_servers[0] }}
+                      </span>
+                    </a-tooltip>
                     <a-tag v-if="host.dns_servers.length > 1" color="blue" size="small" style="margin-left: 6px">
                       +{{ host.dns_servers.length - 1 }}
                     </a-tag>
-                  </span>
+                  </template>
                   <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
@@ -144,14 +214,26 @@
           </div>
         </div>
 
-        <!-- 第二行信息 -->
+        <!-- 第二行信息：时间相关 -->
         <div class="host-info-container" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #f0f0f0">
           <div class="info-column">
             <div class="info-group">
               <div class="info-item">
                 <span class="info-label">客户端安装时间</span>
                 <span class="info-value">
-                  {{ host.created_at ? formatDateTime(host.created_at) : '未采集' }}
+                  <a-tooltip 
+                    v-if="host.created_at" 
+                    :title="formatDateTime(host.created_at)" 
+                    placement="topLeft"
+                  >
+                    <span 
+                      class="copyable-text" 
+                      @click="copyText(formatDateTime(host.created_at), '客户端安装时间')"
+                    >
+                      {{ formatDateTime(host.created_at) }}
+                    </span>
+                  </a-tooltip>
+                  <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
             </div>
@@ -161,7 +243,19 @@
               <div class="info-item">
                 <span class="info-label">客户端启动时间</span>
                 <span class="info-value">
-                  {{ host.last_heartbeat ? formatDateTime(host.last_heartbeat) : '未采集' }}
+                  <a-tooltip 
+                    v-if="host.last_heartbeat" 
+                    :title="formatDateTime(host.last_heartbeat)" 
+                    placement="topLeft"
+                  >
+                    <span 
+                      class="copyable-text" 
+                      @click="copyText(formatDateTime(host.last_heartbeat), '客户端启动时间')"
+                    >
+                      {{ formatDateTime(host.last_heartbeat) }}
+                    </span>
+                  </a-tooltip>
+                  <span v-else class="empty-value">未采集</span>
                 </span>
               </div>
             </div>
@@ -171,17 +265,18 @@
               <div class="info-item">
                 <span class="info-label">设备序列号</span>
                 <span class="info-value">
-                  <span v-if="host.device_serial">{{ host.device_serial }}</span>
+                  <a-tooltip v-if="host.device_serial" :title="host.device_serial" placement="topLeft">
+                    <span class="copyable-text" @click="copyText(host.device_serial, '设备序列号')">
+                      {{ host.device_serial }}
+                    </span>
+                  </a-tooltip>
                   <span v-else class="empty-value">未采集</span>
                 </span>
-              </div>
-              <div class="info-item">
-                <span class="info-label">设备ID</span>
-                <span class="info-value device-id">{{ host.host_id }}</span>
               </div>
             </div>
           </div>
         </div>
+
       </a-card>
 
       <!-- 安全态势概览 -->
@@ -308,12 +403,36 @@
           </div>
         </div>
       </div>
+
+      <!-- 标签编辑模态框 -->
+      <a-modal
+        v-model:open="showTagModal"
+        title="编辑主机标签"
+        @ok="handleSaveTags"
+        @cancel="handleCancelTags"
+      >
+        <div style="margin-bottom: 16px;">
+          <div style="margin-bottom: 8px; font-weight: 500;">标签</div>
+          <a-select
+            v-model:value="editingTags"
+            mode="tags"
+            placeholder="输入标签后按回车添加"
+            style="width: 100%"
+            :max-tag-count="10"
+          >
+          </a-select>
+          <div style="margin-top: 8px; color: rgba(0, 0, 0, 0.45); font-size: 12px;">
+            提示：输入标签后按回车键添加，最多可添加10个标签，每个标签最多50个字符
+          </div>
+        </div>
+      </a-modal>
     </div>
   </a-spin>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { message } from 'ant-design-vue'
 import { hostsApi } from '@/api/hosts'
 import type { HostDetail, BaselineScore } from '@/api/types'
 
@@ -323,6 +442,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  (e: 'update:host', host: HostDetail): void
   (e: 'view-detail', tab: string): void
 }>()
 
@@ -361,6 +481,16 @@ const fingerprintItems = ref([
   { key: 'packages', label: '系统软件', value: 0 },
   { key: 'integrity', label: '系统完整性校验', value: 0 },
 ])
+
+const showTagModal = ref(false)
+const editingTags = ref<string[]>([])
+
+// 监听标签编辑模态框打开，初始化编辑标签
+watch(showTagModal, (open) => {
+  if (open && props.host) {
+    editingTags.value = props.host.tags ? [...props.host.tags] : []
+  }
+})
 
 const alertPercent = computed(() => {
   return alertCount.value > 0 ? 100 : 0
@@ -420,6 +550,58 @@ const formatDateTime = (dateStr: string) => {
     return dateStr
   }
 }
+
+const handleSaveTags = async () => {
+  if (!props.host?.host_id) return
+
+  try {
+    // 调用API更新标签
+    await hostsApi.updateTags(props.host.host_id, editingTags.value)
+    
+    // 通过 emit 通知父组件更新
+    emit('update:host', {
+      ...props.host,
+      tags: editingTags.value
+    })
+    
+    message.success('标签保存成功')
+    showTagModal.value = false
+  } catch (error: any) {
+    console.error('保存标签失败:', error)
+    message.error(error?.message || '保存标签失败，请重试')
+  }
+}
+
+const handleCancelTags = () => {
+  showTagModal.value = false
+  editingTags.value = []
+}
+
+// 通用的复制文本方法
+const copyText = async (text: string, label: string = '内容') => {
+  if (!text) return
+  
+  try {
+    await navigator.clipboard.writeText(text)
+    message.success(`${label}已复制到剪贴板`)
+  } catch (err) {
+    // 降级方案：使用传统方法
+    const textArea = document.createElement('textarea')
+    textArea.value = text
+    textArea.style.position = 'fixed'
+    textArea.style.opacity = '0'
+    document.body.appendChild(textArea)
+    textArea.select()
+    try {
+      document.execCommand('copy')
+      message.success(`${label}已复制到剪贴板`)
+    } catch {
+      message.error('复制失败，请手动复制')
+    }
+    document.body.removeChild(textArea)
+  }
+}
+
 
 onMounted(() => {
   loadOverviewData()
@@ -504,12 +686,28 @@ onMounted(() => {
   font-style: normal;
 }
 
-.info-value.device-id {
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
-  font-size: 13px;
-  color: rgba(0, 0, 0, 0.65);
-  word-break: break-all;
+/* 可复制文本通用样式 */
+.copyable-text {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.5;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.2s;
 }
+
+.copyable-text:hover {
+  color: #1890ff;
+  text-decoration: underline;
+}
+
+.cpu-info-text:hover {
+  color: #1890ff;
+}
+
 
 .status-tag {
   display: inline-flex;

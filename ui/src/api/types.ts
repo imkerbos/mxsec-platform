@@ -26,6 +26,7 @@ export interface Host {
   updated_at: string
   baseline_score?: number
   baseline_pass_rate?: number
+  tags?: string[]
 }
 
 export interface HostDetail extends Host {
@@ -41,6 +42,7 @@ export interface HostDetail extends Host {
   memory_usage?: string
   dns_servers?: string[]
   device_serial?: string
+  tags?: string[]
 }
 
 // 策略相关类型

@@ -244,20 +244,101 @@ func (h *HostsHandler) GetHost(c *gin.Context) {
 		}
 	}
 
-	// TODO: 从系统信息中获取以下字段（需要 Agent 上报）
-	// - device_model: 设备型号
-	// - manufacturer: 生产商
-	// - cpu_info: CPU信息
-	// - memory_size: 内存大小
-	// - default_gateway: 默认网关
-	// - network_mode: 网络模式
-	// - dns_servers: DNS服务器列表
-	// - device_serial: 设备序列号
-	// - system_load: 系统负载
+	// 添加硬件和系统信息（从 Host 模型获取）
+	if host.DeviceModel != "" {
+		responseData["device_model"] = host.DeviceModel
+	}
+	if host.Manufacturer != "" {
+		responseData["manufacturer"] = host.Manufacturer
+	}
+	if host.DeviceSerial != "" {
+		responseData["device_serial"] = host.DeviceSerial
+	}
+	if host.CPUInfo != "" {
+		responseData["cpu_info"] = host.CPUInfo
+	}
+	if host.MemorySize != "" {
+		responseData["memory_size"] = host.MemorySize
+	}
+	if host.SystemLoad != "" {
+		responseData["system_load"] = host.SystemLoad
+	}
+	if host.DefaultGateway != "" {
+		responseData["default_gateway"] = host.DefaultGateway
+	}
+	if host.NetworkMode != "" {
+		responseData["network_mode"] = host.NetworkMode
+	}
+	if len(host.DNSServers) > 0 {
+		responseData["dns_servers"] = host.DNSServers
+	}
+	if len(host.Tags) > 0 {
+		responseData["tags"] = host.Tags
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": responseData,
+	})
+}
+
+// UpdateHostTags 更新主机标签
+// PUT /api/v1/hosts/:host_id/tags
+func (h *HostsHandler) UpdateHostTags(c *gin.Context) {
+	hostID := c.Param("host_id")
+
+	var req struct {
+		Tags []string `json:"tags" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "请求参数错误: " + err.Error(),
+		})
+		return
+	}
+
+	// 验证标签数量（最多10个）
+	if len(req.Tags) > 10 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"code":    400,
+			"message": "标签数量不能超过10个",
+		})
+		return
+	}
+
+	// 验证标签长度（每个标签最多50个字符）
+	for _, tag := range req.Tags {
+		if len(tag) > 50 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code":    400,
+				"message": "标签长度不能超过50个字符",
+			})
+			return
+		}
+	}
+
+	// 更新数据库
+	tags := model.StringArray(req.Tags)
+	if err := h.db.Model(&model.Host{}).Where("host_id = ?", hostID).Update("tags", tags).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{
+				"code":    404,
+				"message": "主机不存在",
+			})
+			return
+		}
+		h.logger.Error("更新主机标签失败", zap.Error(err), zap.String("host_id", hostID))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "更新主机标签失败",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"code":    0,
+		"message": "标签更新成功",
 	})
 }
 
