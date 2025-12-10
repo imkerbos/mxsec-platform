@@ -192,10 +192,10 @@ deploy/docker-compose/configs/*.secret.yaml
 # Air (Go hot reload)
 tmp/
 .air.toml.bak
-# 但保留 Air 配置文件
-!.air.toml
-!.air.agent.toml
-!.air.agentcenter.toml
+# Air 配置文件（开发环境配置，不提交）
+.air.toml
+.air.agent.toml
+.air.agentcenter.toml
 
 # 构建目录
 build/
@@ -299,7 +299,6 @@ docs/.doctrees/
 !tsconfig.*.json
 !vite.config.ts
 !Makefile
-!.air.toml
 
 # 保留脚本文件
 !scripts/
