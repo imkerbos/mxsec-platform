@@ -2,184 +2,312 @@
   <a-spin :spinning="loading">
     <div v-if="host" class="host-overview">
       <!-- 主机基本信息 -->
-      <a-card title="主机基本信息" :bordered="false" style="margin-bottom: 16px">
-        <a-row :gutter="24">
-          <a-col :span="8">
-            <a-descriptions :column="1" bordered size="small">
-              <a-descriptions-item label="操作系统">
-                {{ host.os_family }}:{{ host.os_version }}
-              </a-descriptions-item>
-              <a-descriptions-item label="主机标签">-</a-descriptions-item>
-              <a-descriptions-item label="设备型号">{{ host.device_model || '-' }}</a-descriptions-item>
-              <a-descriptions-item label="生产商">{{ host.manufacturer || '-' }}</a-descriptions-item>
-              <a-descriptions-item label="系统负载">{{ host.system_load || '-' }}</a-descriptions-item>
-            </a-descriptions>
-          </a-col>
-          <a-col :span="8">
-            <a-descriptions :column="1" bordered size="small">
-              <a-descriptions-item label="私网IPv4">
-                <span v-if="host.ipv4 && host.ipv4.length > 0">
-                  {{ host.ipv4[0] }}
-                  <a-tag v-if="host.ipv4.length > 1" color="blue" style="margin-left: 4px">
-                    +{{ host.ipv4.length - 1 }}
+      <a-card title="主机基本信息" :bordered="false" class="host-info-card">
+        <div class="host-info-container">
+          <!-- 左侧列 -->
+          <div class="info-column">
+            <div class="info-group">
+              <div class="info-item">
+                <span class="info-label">操作系统</span>
+                <span class="info-value">
+                  <span v-if="host.os_family || host.os_version">
+                    {{ host.os_family || '未知' }}{{ host.os_family && host.os_version ? ' ' : '' }}{{ host.os_version || '' }}
+                  </span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">主机标签</span>
+                <span class="info-value empty-value">未设置</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">设备型号</span>
+                <span class="info-value">
+                  <span v-if="host.device_model">{{ host.device_model }}</span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">生产商</span>
+                <span class="info-value">
+                  <span v-if="host.manufacturer">{{ host.manufacturer }}</span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">系统负载</span>
+                <span class="info-value">
+                  <span v-if="host.system_load">{{ host.system_load }}</span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 中间列 -->
+          <div class="info-column">
+            <div class="info-group">
+              <div class="info-item">
+                <span class="info-label">私网IPv4</span>
+                <span class="info-value">
+                  <span v-if="host.ipv4 && host.ipv4.length > 0">
+                    {{ host.ipv4[0] }}
+                    <a-tag v-if="host.ipv4.length > 1" color="blue" size="small" style="margin-left: 6px">
+                      +{{ host.ipv4.length - 1 }}
+                    </a-tag>
+                  </span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">私网IPv6</span>
+                <span class="info-value">
+                  <span v-if="host.ipv6 && host.ipv6.length > 0">
+                    {{ host.ipv6[0] }}
+                    <a-tag v-if="host.ipv6.length > 1" color="blue" size="small" style="margin-left: 6px">
+                      +{{ host.ipv6.length - 1 }}
+                    </a-tag>
+                  </span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">CPU信息</span>
+                <span class="info-value">
+                  <span v-if="host.cpu_info">{{ host.cpu_info }}</span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">内存大小</span>
+                <span class="info-value">
+                  <span v-if="host.memory_size">{{ host.memory_size }}</span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">默认网关</span>
+                <span class="info-value">
+                  <span v-if="host.default_gateway">{{ host.default_gateway }}</span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧列 -->
+          <div class="info-column">
+            <div class="info-group">
+              <div class="info-item">
+                <span class="info-label">网络模式</span>
+                <span class="info-value">
+                  <span v-if="host.network_mode">{{ host.network_mode }}</span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">客户端状态</span>
+                <span class="info-value">
+                  <a-tag :color="host.status === 'online' ? 'success' : 'error'" class="status-tag">
+                    <span class="status-dot" :class="host.status === 'online' ? 'online' : 'offline'"></span>
+                    {{ host.status === 'online' ? '运行中' : '离线' }}
                   </a-tag>
                 </span>
-                <span v-else>-</span>
-              </a-descriptions-item>
-              <a-descriptions-item label="私网IPv6">-</a-descriptions-item>
-              <a-descriptions-item label="CPU信息">{{ host.cpu_info || '-' }}</a-descriptions-item>
-              <a-descriptions-item label="内存大小">{{ host.memory_size || '-' }}</a-descriptions-item>
-              <a-descriptions-item label="默认网关">{{ host.default_gateway || '-' }}</a-descriptions-item>
-            </a-descriptions>
-          </a-col>
-          <a-col :span="8">
-            <a-descriptions :column="1" bordered size="small">
-              <a-descriptions-item label="网络模式">{{ host.network_mode || '-' }}</a-descriptions-item>
-              <a-descriptions-item label="客户端状态">
-                <a-tag :color="host.status === 'online' ? 'green' : 'red'">
-                  <span v-if="host.status === 'online'">● 运行中</span>
-                  <span v-else>● 离线</span>
-                </a-tag>
-              </a-descriptions-item>
-              <a-descriptions-item label="CPU使用率">{{ host.cpu_usage || '-' }}</a-descriptions-item>
-              <a-descriptions-item label="内存使用率">{{ host.memory_usage || '-' }}</a-descriptions-item>
-              <a-descriptions-item label="DNS服务器">
-                <span v-if="host.dns_servers && host.dns_servers.length > 0">
-                  {{ host.dns_servers[0] }}
-                  <a-tag v-if="host.dns_servers.length > 1" color="blue" style="margin-left: 4px">
-                    +{{ host.dns_servers.length - 1 }}
-                  </a-tag>
+              </div>
+              <div class="info-item">
+                <span class="info-label">CPU使用率</span>
+                <span class="info-value">
+                  <span v-if="host.cpu_usage">{{ host.cpu_usage }}</span>
+                  <span v-else class="empty-value">未采集</span>
                 </span>
-                <span v-else>-</span>
-              </a-descriptions-item>
-              <a-descriptions-item label="客户端安装时间">{{ host.created_at }}</a-descriptions-item>
-              <a-descriptions-item label="客户端启动时间">{{ host.last_heartbeat }}</a-descriptions-item>
-              <a-descriptions-item label="设备序列号">{{ host.device_serial || '-' }}</a-descriptions-item>
-              <a-descriptions-item label="设备ID">{{ host.host_id }}</a-descriptions-item>
-            </a-descriptions>
-          </a-col>
-        </a-row>
+              </div>
+              <div class="info-item">
+                <span class="info-label">内存使用率</span>
+                <span class="info-value">
+                  <span v-if="host.memory_usage">{{ host.memory_usage }}</span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">DNS服务器</span>
+                <span class="info-value">
+                  <span v-if="host.dns_servers && host.dns_servers.length > 0">
+                    {{ host.dns_servers[0] }}
+                    <a-tag v-if="host.dns_servers.length > 1" color="blue" size="small" style="margin-left: 6px">
+                      +{{ host.dns_servers.length - 1 }}
+                    </a-tag>
+                  </span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 第二行信息 -->
+        <div class="host-info-container" style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #f0f0f0">
+          <div class="info-column">
+            <div class="info-group">
+              <div class="info-item">
+                <span class="info-label">客户端安装时间</span>
+                <span class="info-value">
+                  {{ host.created_at ? formatDateTime(host.created_at) : '未采集' }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="info-column">
+            <div class="info-group">
+              <div class="info-item">
+                <span class="info-label">客户端启动时间</span>
+                <span class="info-value">
+                  {{ host.last_heartbeat ? formatDateTime(host.last_heartbeat) : '未采集' }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="info-column">
+            <div class="info-group">
+              <div class="info-item">
+                <span class="info-label">设备序列号</span>
+                <span class="info-value">
+                  <span v-if="host.device_serial">{{ host.device_serial }}</span>
+                  <span v-else class="empty-value">未采集</span>
+                </span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">设备ID</span>
+                <span class="info-value device-id">{{ host.host_id }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </a-card>
 
       <!-- 安全态势概览 -->
-      <a-row :gutter="16" style="margin-bottom: 16px">
-        <a-col :span="8">
-          <a-card title="安全告警" :bordered="false">
-            <template #extra>
-              <a-button type="link" size="small" @click="$emit('view-detail', 'alerts')">详情</a-button>
-            </template>
-            <div style="text-align: center">
+      <div class="risk-overview-container">
+        <div class="risk-card">
+          <div class="risk-card-header">
+            <span class="risk-card-title">安全告警</span>
+            <a-button type="link" size="small" class="risk-card-link" @click="$emit('view-detail', 'alerts')">详情</a-button>
+          </div>
+          <div class="risk-card-content">
+            <div class="risk-progress-wrapper">
               <a-progress
                 type="circle"
                 :percent="alertPercent"
                 :stroke-color="alertColor"
-                :size="120"
+                :size="100"
+                :stroke-width="8"
                 :format="() => `${alertCount}个\n未处理告警`"
+                class="risk-progress"
               />
             </div>
-            <a-divider />
-            <a-space direction="vertical" style="width: 100%">
-              <div style="display: flex; justify-content: space-between">
-                <span>紧急</span>
-                <span>{{ alertStats.critical || 0 }}</span>
+            <div class="risk-stats">
+              <div class="risk-stat-item">
+                <span class="risk-stat-label">紧急</span>
+                <span class="risk-stat-value">{{ alertStats.critical || 0 }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between">
-                <span>高风险</span>
-                <span>{{ alertStats.high || 0 }}</span>
+              <div class="risk-stat-item">
+                <span class="risk-stat-label">高风险</span>
+                <span class="risk-stat-value">{{ alertStats.high || 0 }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between">
-                <span>中风险</span>
-                <span>{{ alertStats.medium || 0 }}</span>
+              <div class="risk-stat-item">
+                <span class="risk-stat-label">中风险</span>
+                <span class="risk-stat-value">{{ alertStats.medium || 0 }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between">
-                <span>低风险</span>
-                <span>{{ alertStats.low || 0 }}</span>
+              <div class="risk-stat-item">
+                <span class="risk-stat-label">低风险</span>
+                <span class="risk-stat-value">{{ alertStats.low || 0 }}</span>
               </div>
-            </a-space>
-          </a-card>
-        </a-col>
-        <a-col :span="8">
-          <a-card title="漏洞风险" :bordered="false">
-            <template #extra>
-              <a-button type="link" size="small" @click="$emit('view-detail', 'vulnerabilities')">详情</a-button>
-            </template>
-            <div style="text-align: center">
+            </div>
+          </div>
+        </div>
+        <div class="risk-card">
+          <div class="risk-card-header">
+            <span class="risk-card-title">漏洞风险</span>
+            <a-button type="link" size="small" class="risk-card-link" @click="$emit('view-detail', 'vulnerabilities')">详情</a-button>
+          </div>
+          <div class="risk-card-content">
+            <div class="risk-progress-wrapper">
               <a-progress
                 type="circle"
                 :percent="vulnPercent"
                 :stroke-color="vulnColor"
-                :size="120"
+                :size="100"
+                :stroke-width="8"
                 :format="() => `${vulnerabilityCount}个\n未处理高可利用漏洞`"
+                class="risk-progress"
               />
             </div>
-            <a-divider />
-            <a-space direction="vertical" style="width: 100%">
-              <div style="display: flex; justify-content: space-between">
-                <span>严重</span>
-                <span>{{ vulnStats.critical || 0 }}</span>
+            <div class="risk-stats">
+              <div class="risk-stat-item">
+                <span class="risk-stat-label">严重</span>
+                <span class="risk-stat-value">{{ vulnStats.critical || 0 }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between">
-                <span>高危</span>
-                <span>{{ vulnStats.high || 0 }}</span>
+              <div class="risk-stat-item">
+                <span class="risk-stat-label">高危</span>
+                <span class="risk-stat-value">{{ vulnStats.high || 0 }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between">
-                <span>中危</span>
-                <span>{{ vulnStats.medium || 0 }}</span>
+              <div class="risk-stat-item">
+                <span class="risk-stat-label">中危</span>
+                <span class="risk-stat-value">{{ vulnStats.medium || 0 }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between">
-                <span>低危</span>
-                <span>{{ vulnStats.low || 0 }}</span>
+              <div class="risk-stat-item">
+                <span class="risk-stat-label">低危</span>
+                <span class="risk-stat-value">{{ vulnStats.low || 0 }}</span>
               </div>
-            </a-space>
-          </a-card>
-        </a-col>
-        <a-col :span="8">
-          <a-card title="基线风险" :bordered="false">
-            <template #extra>
-              <a-button type="link" size="small" @click="$emit('view-detail', 'baseline')">详情</a-button>
-            </template>
-            <div style="text-align: center">
+            </div>
+          </div>
+        </div>
+        <div class="risk-card">
+          <div class="risk-card-header">
+            <span class="risk-card-title">基线风险</span>
+            <a-button type="link" size="small" class="risk-card-link" @click="$emit('view-detail', 'baseline')">详情</a-button>
+          </div>
+          <div class="risk-card-content">
+            <div class="risk-progress-wrapper">
               <a-progress
                 type="circle"
                 :percent="baselinePercent"
                 :stroke-color="baselineColor"
-                :size="120"
+                :size="100"
+                :stroke-width="8"
                 :format="() => `${baselineCount}个\n待加固基线`"
+                class="risk-progress"
               />
             </div>
-            <a-divider />
-            <a-space direction="vertical" style="width: 100%">
-              <div style="display: flex; justify-content: space-between">
-                <span>高危</span>
-                <span>{{ baselineStats.high || 0 }}</span>
+            <div class="risk-stats">
+              <div class="risk-stat-item">
+                <span class="risk-stat-label">高危</span>
+                <span class="risk-stat-value">{{ baselineStats.high || 0 }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between">
-                <span>中危</span>
-                <span>{{ baselineStats.medium || 0 }}</span>
+              <div class="risk-stat-item">
+                <span class="risk-stat-label">中危</span>
+                <span class="risk-stat-value">{{ baselineStats.medium || 0 }}</span>
               </div>
-              <div style="display: flex; justify-content: space-between">
-                <span>低危</span>
-                <span>{{ baselineStats.low || 0 }}</span>
+              <div class="risk-stat-item">
+                <span class="risk-stat-label">低危</span>
+                <span class="risk-stat-value">{{ baselineStats.low || 0 }}</span>
               </div>
-            </a-space>
-          </a-card>
-        </a-col>
-      </a-row>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- 资产指纹 -->
-      <a-card title="资产指纹" :bordered="false">
-        <template #extra>
-          <a-button type="link" size="small" @click="$emit('view-detail', 'fingerprint')">详情</a-button>
-        </template>
-        <a-row :gutter="16">
-          <a-col :span="3" v-for="item in fingerprintItems" :key="item.key">
-            <a-card :bordered="false" style="text-align: center; cursor: pointer" hoverable>
-              <div style="font-size: 24px; font-weight: bold; margin-bottom: 8px">{{ item.value }}</div>
-              <div style="color: #8c8c8c">{{ item.label }}</div>
-            </a-card>
-          </a-col>
-        </a-row>
-      </a-card>
+      <div class="fingerprint-section">
+        <div class="fingerprint-header">
+          <span class="fingerprint-title">资产指纹</span>
+          <a-button type="link" size="small" class="fingerprint-link" @click="$emit('view-detail', 'fingerprint')">详情</a-button>
+        </div>
+        <div class="fingerprint-grid">
+          <div class="fingerprint-item" v-for="item in fingerprintItems" :key="item.key">
+            <div class="fingerprint-value">{{ item.value }}</div>
+            <div class="fingerprint-label">{{ item.label }}</div>
+          </div>
+        </div>
+      </div>
     </div>
   </a-spin>
 </template>
@@ -276,6 +404,23 @@ const loadOverviewData = async () => {
   }
 }
 
+const formatDateTime = (dateStr: string) => {
+  if (!dateStr) return '-'
+  try {
+    const date = new Date(dateStr)
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch {
+    return dateStr
+  }
+}
+
 onMounted(() => {
   loadOverviewData()
 })
@@ -284,5 +429,340 @@ onMounted(() => {
 <style scoped>
 .host-overview {
   width: 100%;
+}
+
+.host-info-card {
+  margin-bottom: 16px;
+}
+
+.host-info-card :deep(.ant-card-head) {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 16px 24px;
+}
+
+.host-info-card :deep(.ant-card-head-title) {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.host-info-card :deep(.ant-card-body) {
+  padding: 24px;
+}
+
+.host-info-container {
+  display: flex;
+  gap: 32px;
+  width: 100%;
+}
+
+.info-column {
+  flex: 1;
+  min-width: 0;
+}
+
+.info-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.info-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f5;
+  min-height: 44px;
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  flex: 0 0 120px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.85);
+  text-align: right;
+  padding-right: 16px;
+  line-height: 20px;
+  margin-top: 2px;
+}
+
+.info-value {
+  flex: 1;
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+  line-height: 20px;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.info-value.empty-value {
+  color: rgba(0, 0, 0, 0.25);
+  font-style: normal;
+}
+
+.info-value.device-id {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+  word-break: break-all;
+}
+
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: none;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-dot.online {
+  background-color: #52c41a;
+  box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
+}
+
+.status-dot.offline {
+  background-color: #ff4d4f;
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}
+
+/* 安全态势概览 */
+.risk-overview-container {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.risk-card {
+  flex: 1;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 2px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.risk-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.risk-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.risk-card-link {
+  padding: 0;
+  height: auto;
+  font-size: 14px;
+}
+
+.risk-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.risk-progress-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.risk-progress :deep(.ant-progress-text) {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.risk-stats {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.risk-stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.risk-stat-label {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.risk-stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+/* 资产指纹 */
+.fingerprint-section {
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 2px;
+  padding: 20px;
+}
+
+.fingerprint-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.fingerprint-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.fingerprint-link {
+  padding: 0;
+  height: auto;
+  font-size: 14px;
+}
+
+.fingerprint-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.fingerprint-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 2px;
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.fingerprint-item:hover {
+  background: #f5f5f5;
+}
+
+.fingerprint-value {
+  font-size: 28px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.85);
+  margin-bottom: 8px;
+  line-height: 1;
+}
+
+.fingerprint-label {
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.65);
+  text-align: center;
+}
+
+/* 响应式设计 */
+@media (max-width: 1400px) {
+  .host-info-container {
+    gap: 24px;
+  }
+  
+  .info-label {
+    flex: 0 0 100px;
+    font-size: 13px;
+  }
+  
+  .info-value {
+    font-size: 13px;
+  }
+  
+  .fingerprint-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+  
+  .fingerprint-item {
+    padding: 16px;
+  }
+  
+  .fingerprint-value {
+    font-size: 24px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .host-info-container {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .info-column {
+    margin-bottom: 0;
+  }
+  
+  .info-item {
+    border-bottom: 1px solid #f5f5f5;
+  }
+  
+  .info-item:last-child {
+    border-bottom: 1px solid #f5f5f5;
+  }
+  
+  .info-group:last-child .info-item:last-child {
+    border-bottom: none;
+  }
+  
+  .risk-overview-container {
+    flex-direction: column;
+  }
+  
+  .fingerprint-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .fingerprint-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .risk-card-content {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  
+  .risk-progress-wrapper {
+    flex-shrink: 0;
+  }
+  
+  .risk-stats {
+    flex: 1;
+  }
 }
 </style>
