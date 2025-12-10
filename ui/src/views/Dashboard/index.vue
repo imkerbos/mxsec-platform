@@ -211,15 +211,8 @@
                 {{ getServiceStatusText(serviceStatus.manager) }}
               </a-tag>
             </div>
-            <div class="service-status-item">
-              <div class="service-name">
-                <span class="status-dot" :class="getServiceStatusClass('baseline')"></span>
-                <span>基线检查插件</span>
-              </div>
-              <a-tag :color="getServiceStatusColor(serviceStatus.baseline)">
-                {{ getServiceStatusText(serviceStatus.baseline) }}
-              </a-tag>
-            </div>
+            <!-- 基线检查插件在 Agent 端运行，Server 端无法直接检查其状态 -->
+            <!-- 如需了解基线检查活动情况，可通过"在线 Agent 数量"或"最近基线检查结果"来判断 -->
           </a-space>
         </a-card>
       </a-col>
@@ -230,6 +223,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { dashboardApi } from '@/api/dashboard'
+import { hostsApi } from '@/api/hosts'
 import type { DashboardStats } from '@/api/dashboard'
 
 interface EventItem {
@@ -277,7 +271,7 @@ const serviceStatus = ref({
   database: 'healthy',
   agentcenter: 'healthy',
   manager: 'healthy',
-  baseline: 'healthy',
+  // 基线检查插件在 Agent 端运行，Server 端无法直接检查其状态
 })
 
 const getEventColor = (type: string) => {
@@ -333,7 +327,13 @@ const getServiceStatusText = (status: string) => {
 
 const loadDashboardData = async () => {
   try {
-    const dashboardStats = await dashboardApi.getStats()
+    // 并行加载 Dashboard 统计数据、主机状态分布和风险分布
+    const [dashboardStats, statusDistribution, riskDistribution] = await Promise.all([
+      dashboardApi.getStats(),
+      hostsApi.getStatusDistribution().catch(() => null),
+      hostsApi.getRiskDistribution().catch(() => null),
+    ])
+
     stats.value = {
       ...dashboardStats,
       baselineHardeningPercent: dashboardStats.baselineHardeningPercent || 0,
@@ -351,6 +351,40 @@ const loadDashboardData = async () => {
       virusHostPercent: dashboardStats.virusHostPercent || 0,
     }
 
+    // 更新主机状态分布（如果可用）
+    if (statusDistribution) {
+      // 可以在这里使用状态分布数据更新 UI
+      // 例如：更新在线/离线 Agent 数量
+      if (stats.value.onlineAgents === 0 && statusDistribution.running > 0) {
+        stats.value.onlineAgents = statusDistribution.running
+      }
+      if (stats.value.offlineAgents === 0 && statusDistribution.offline > 0) {
+        stats.value.offlineAgents = statusDistribution.offline
+      }
+    }
+
+    // 更新主机风险分布（如果可用）
+    if (riskDistribution) {
+      // 计算风险主机百分比
+      const totalHosts = stats.value.hosts || 1
+      if (riskDistribution.high_risk_baselines > 0) {
+        stats.value.baselineHostPercent = Math.round((riskDistribution.high_risk_baselines / totalHosts) * 100)
+      }
+      // 其他风险类型的百分比可以类似计算
+      if (riskDistribution.host_container_alerts > 0) {
+        stats.value.hostAlertPercent = Math.round((riskDistribution.host_container_alerts / totalHosts) * 100)
+      }
+      if (riskDistribution.high_exploitable_vulns > 0) {
+        stats.value.vulnHostPercent = Math.round((riskDistribution.high_exploitable_vulns / totalHosts) * 100)
+      }
+      if (riskDistribution.app_runtime_alerts > 0) {
+        stats.value.runtimeAlertPercent = Math.round((riskDistribution.app_runtime_alerts / totalHosts) * 100)
+      }
+      if (riskDistribution.virus_files > 0) {
+        stats.value.virusHostPercent = Math.round((riskDistribution.virus_files / totalHosts) * 100)
+      }
+    }
+
     // 加载基线风险 Top 3
     if (dashboardStats.baselineRisks) {
       baselineRisks.value = dashboardStats.baselineRisks.slice(0, 3)
@@ -365,7 +399,7 @@ const loadDashboardData = async () => {
         database: dashboardStats.serviceStatus.database || 'healthy',
         agentcenter: dashboardStats.serviceStatus.agentcenter || 'healthy',
         manager: dashboardStats.serviceStatus.manager || 'healthy',
-        baseline: dashboardStats.serviceStatus.baseline || 'healthy',
+        // 基线检查插件在 Agent 端运行，Server 端无法直接检查其状态
       }
     }
   } catch (error) {

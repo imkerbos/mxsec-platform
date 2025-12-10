@@ -139,3 +139,187 @@ export interface BaselineSummary {
   }
   by_category: Record<string, { pass: number; fail: number; error: number; na: number }>
 }
+
+// 资产数据相关类型
+export interface Process {
+  id: string
+  host_id: string
+  pid: string
+  ppid: string
+  cmdline: string
+  exe: string
+  exe_hash?: string
+  container_id?: string
+  uid: string
+  gid: string
+  username?: string
+  groupname?: string
+  collected_at: string
+}
+
+export interface Port {
+  id: string
+  host_id: string
+  protocol: string // tcp/udp
+  port: number
+  state?: string // LISTEN/ESTABLISHED 等
+  pid?: string
+  process_name?: string
+  container_id?: string
+  collected_at: string
+}
+
+export interface AssetUser {
+  id: string
+  host_id: string
+  username: string
+  uid: string
+  gid: string
+  groupname?: string
+  home_dir: string
+  shell: string
+  comment?: string
+  has_password: boolean
+  collected_at: string
+}
+
+export interface Software {
+  id: string
+  host_id: string
+  name: string
+  version?: string
+  architecture?: string
+  package_type: string // rpm、deb、pip、npm、jar 等
+  vendor?: string
+  install_time?: string
+  collected_at: string
+}
+
+export interface Container {
+  id: string
+  host_id: string
+  container_id: string
+  container_name?: string
+  image?: string
+  image_id?: string
+  runtime?: string // docker、containerd
+  status?: string // running、stopped 等
+  created_at?: string
+  collected_at: string
+}
+
+export interface App {
+  id: string
+  host_id: string
+  app_type: string // mysql、redis、nginx、kafka 等
+  app_name?: string
+  version?: string
+  port?: number
+  process_id?: string
+  config_path?: string
+  data_path?: string
+  collected_at: string
+}
+
+export interface NetInterface {
+  id: string
+  host_id: string
+  interface_name: string // eth0、ens33 等
+  mac_address?: string
+  ipv4_addresses?: string[]
+  ipv6_addresses?: string[]
+  mtu?: number
+  state?: string // up、down
+  collected_at: string
+}
+
+export interface Volume {
+  id: string
+  host_id: string
+  device?: string // /dev/sda1
+  mount_point?: string // /、/home 等
+  file_system?: string // ext4、xfs 等
+  total_size?: number // 总大小（字节）
+  used_size?: number // 已用大小（字节）
+  available_size?: number // 可用大小（字节）
+  usage_percent?: number // 使用率（百分比）
+  collected_at: string
+}
+
+export interface Kmod {
+  id: string
+  host_id: string
+  module_name: string
+  size?: number // 模块大小（字节）
+  used_by?: number // 引用计数
+  state?: string // Live、Loading、Unloading
+  collected_at: string
+}
+
+export interface Service {
+  id: string
+  host_id: string
+  service_name: string
+  service_type?: string // systemd、sysv
+  status?: string // active、inactive、failed 等
+  enabled?: boolean // 是否开机自启
+  description?: string
+  collected_at: string
+}
+
+export interface Cron {
+  id: string
+  host_id: string
+  user: string // root、username
+  schedule: string // 调度表达式（* * * * *）
+  command: string // 执行的命令
+  cron_type?: string // crontab、systemd-timer
+  enabled?: boolean // 是否启用
+  collected_at: string
+}
+
+// 主机监控数据相关类型
+export interface HostMetrics {
+  host_id: string
+  latest?: LatestMetrics
+  time_series?: TimeSeriesMetrics
+  source: 'mysql' | 'prometheus'
+}
+
+export interface LatestMetrics {
+  cpu_usage?: number
+  mem_usage?: number
+  disk_usage?: number
+  net_bytes_sent?: number
+  net_bytes_recv?: number
+  collected_at?: string
+}
+
+export interface TimeSeriesMetrics {
+  cpu_usage?: TimeSeriesPoint[]
+  mem_usage?: TimeSeriesPoint[]
+  disk_usage?: TimeSeriesPoint[]
+}
+
+export interface TimeSeriesPoint {
+  timestamp: string
+  value: number
+}
+
+// 策略统计信息相关类型
+export interface PolicyStatistics {
+  policy_id: string
+  rule_count: number
+  host_count: number
+  pass_rate: number
+  pass_count: number
+  fail_count: number
+  risk_count: number
+  last_check_time?: string
+  by_severity?: {
+    critical: { pass: number; fail: number }
+    high: { pass: number; fail: number }
+    medium: { pass: number; fail: number }
+    low: { pass: number; fail: number }
+  }
+}

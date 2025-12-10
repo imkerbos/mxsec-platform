@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { Host, HostDetail, PaginatedResponse, BaselineScore, BaselineSummary } from './types'
+import type { Host, HostDetail, PaginatedResponse, BaselineScore, BaselineSummary, HostMetrics } from './types'
 
 export interface HostStatusDistribution {
   running: number
@@ -51,5 +51,13 @@ export const hostsApi = {
   // 获取主机风险分布
   getRiskDistribution: () => {
     return apiClient.get<HostRiskDistribution>('/hosts/risk-distribution')
+  },
+
+  // 获取主机监控数据
+  getMetrics: (hostId: string, params?: {
+    start_time?: string
+    end_time?: string
+  }) => {
+    return apiClient.get<HostMetrics>(`/hosts/${hostId}/metrics`, { params })
   },
 }

@@ -72,11 +72,22 @@ make dev-docker-down
    - **使用 Air（推荐）**：容器内已安装 Air，修改 Go 代码后会自动重新编译和运行
    - **使用 go run**：如果没有 Air，使用 go run 模式，修改代码后需要手动重启容器
 
-2. **前端（UI）**：
+2. **后端（AgentCenter）**：
+   - **使用 Air（推荐）**：容器内已安装 Air，修改 Go 代码后会自动重新编译和运行
+   - **使用 go run**：如果没有 Air，使用 go run 模式，修改代码后需要手动重启容器
+   - **配置文件**：使用 `.air.agentcenter.toml`
+
+3. **后端（Agent）**：
+   - **使用 Air（推荐）**：容器内已安装 Air，修改 Go 代码后会自动重新编译和运行
+   - **使用 go run**：如果没有 Air，使用 go run 模式，修改代码后需要手动重启容器
+   - **配置文件**：使用 `.air.agent.toml`
+   - **环境变量**：`SERVER_HOST` 和 `VERSION` 通过环境变量传递给 Air（在 docker-compose.dev.yml 中设置）
+
+4. **前端（UI）**：
    - **Vite 热重载**：修改 Vue/TypeScript 代码后，浏览器会自动刷新
    - **无需重启**：前端代码修改立即生效，支持 HMR（热模块替换）
 
-**提示**：两个服务都在 Docker 容器中运行，代码通过 volume 挂载，修改宿主机代码会立即反映到容器中。
+**提示**：所有服务都在 Docker 容器中运行，代码通过 volume 挂载，修改宿主机代码会立即反映到容器中。
 
 ### 重启服务
 
@@ -84,16 +95,18 @@ make dev-docker-down
 # 方式1：使用 Makefile（重启 Manager 和 UI）
 make dev-docker-restart
 
-# 方式2：直接使用 docker-compose
+# 方式2：直接使用 docker-compose（重启所有服务）
 cd deploy/docker-compose
-docker-compose -f docker-compose.dev.yml restart manager ui
+docker-compose -f docker-compose.dev.yml restart
 
 # 方式3：重启单个服务
 docker-compose -f docker-compose.dev.yml restart manager
+docker-compose -f docker-compose.dev.yml restart agentcenter
+docker-compose -f docker-compose.dev.yml restart agent
 docker-compose -f docker-compose.dev.yml restart ui
 
-# 方式4：重新构建并启动
-docker-compose -f docker-compose.dev.yml up --build manager ui
+# 方式4：重新构建并启动（修改 Dockerfile 后需要）
+docker-compose -f docker-compose.dev.yml up --build agentcenter manager agent ui
 ```
 
 ## 查看日志

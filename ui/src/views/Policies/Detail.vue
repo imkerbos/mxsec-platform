@@ -471,46 +471,63 @@ const loadStatistics = async () => {
   if (!policy.value) return
 
   try {
-    // 加载该策略的所有检查结果
-    const resultsResponse = (await resultsApi.list({
-      policy_id: policy.value.id,
-      page_size: 1000,
-    })) as unknown as { total: number; items: ScanResult[] }
-
-    const results = resultsResponse.items
-    const hostIds = new Set(results.map((r: ScanResult) => r.host_id))
-    hostCount.value = hostIds.size
-
-    // 计算通过率
-    const totalResults = results.length
-    const passResults = results.filter((r: ScanResult) => r.status === 'pass').length
-    passRate.value = totalResults > 0 ? Math.round((passResults / totalResults) * 100) : 0
-
-    // 计算风险项数量
-    const failedRules = new Set(
-      results.filter((r: ScanResult) => r.status === 'fail').map((r: ScanResult) => r.rule_id)
-    )
-    riskCount.value = failedRules.size
-
-    // 计算通过的主机数（所有规则都通过的主机）
-    const hostResultsMap = new Map<string, ScanResult[]>()
-    results.forEach((r: ScanResult) => {
-      if (!hostResultsMap.has(r.host_id)) {
-        hostResultsMap.set(r.host_id, [])
-      }
-      hostResultsMap.get(r.host_id)!.push(r)
-    })
-
-    let passHostCount = 0
-    hostResultsMap.forEach((hostResults) => {
-      const allPass = hostResults.every((r) => r.status === 'pass')
-      if (allPass) {
-        passHostCount++
-      }
-    })
-    hostPassCount.value = passHostCount
+    // 使用统计 API 获取策略统计信息
+    const statistics = await policiesApi.getStatistics(policy.value.id)
+    
+    // 更新统计数据
+    passRate.value = statistics.pass_rate || 0
+    hostCount.value = statistics.host_count || 0
+    ruleCount.value = statistics.rule_count || 0
+    riskCount.value = statistics.risk_count || 0
+    
+    // 计算通过的主机数（从统计信息中获取）
+    hostPassCount.value = statistics.host_count - (statistics.fail_count || 0)
+    
+    // 更新最后检查时间
+    if (statistics.last_check_time) {
+      lastCheckTime.value = new Date(statistics.last_check_time).toLocaleString('zh-CN')
+    }
   } catch (error) {
     console.error('加载统计信息失败:', error)
+    // 如果 API 失败，回退到手动计算方式
+    try {
+      const resultsResponse = (await resultsApi.list({
+        policy_id: policy.value!.id,
+        page_size: 1000,
+      })) as unknown as { total: number; items: ScanResult[] }
+
+      const results = resultsResponse.items
+      const hostIds = new Set(results.map((r: ScanResult) => r.host_id))
+      hostCount.value = hostIds.size
+
+      const totalResults = results.length
+      const passResults = results.filter((r: ScanResult) => r.status === 'pass').length
+      passRate.value = totalResults > 0 ? Math.round((passResults / totalResults) * 100) : 0
+
+      const failedRules = new Set(
+        results.filter((r: ScanResult) => r.status === 'fail').map((r: ScanResult) => r.rule_id)
+      )
+      riskCount.value = failedRules.size
+
+      const hostResultsMap = new Map<string, ScanResult[]>()
+      results.forEach((r: ScanResult) => {
+        if (!hostResultsMap.has(r.host_id)) {
+          hostResultsMap.set(r.host_id, [])
+        }
+        hostResultsMap.get(r.host_id)!.push(r)
+      })
+
+      let passHostCount = 0
+      hostResultsMap.forEach((hostResults) => {
+        const allPass = hostResults.every((r) => r.status === 'pass')
+        if (allPass) {
+          passHostCount++
+        }
+      })
+      hostPassCount.value = passHostCount
+    } catch (fallbackError) {
+      console.error('回退统计计算失败:', fallbackError)
+    }
   }
 }
 

@@ -45,7 +45,11 @@ func Rollback(db *gorm.DB, logger *zap.Logger) error {
 		"scan_tasks",
 		"rules",
 		"policies",
+		"processes",
+		"ports",
+		"asset_users",
 		"hosts",
+		"users",
 	}
 
 	for _, table := range tables {

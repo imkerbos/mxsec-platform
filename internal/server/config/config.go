@@ -19,6 +19,7 @@ type Config struct {
 	MTLS     MTLSConfig     `mapstructure:"mtls"`
 	Log      LogConfig      `mapstructure:"log"`
 	Agent    AgentConfig    `mapstructure:"agent"`
+	Metrics  MetricsConfig  `mapstructure:"metrics"`
 }
 
 // ServerConfig 是服务器配置
@@ -125,6 +126,33 @@ type LogConfig struct {
 type AgentConfig struct {
 	HeartbeatInterval int    `mapstructure:"heartbeat_interval"`
 	WorkDir           string `mapstructure:"work_dir"`
+}
+
+// MetricsConfig 是监控指标配置
+type MetricsConfig struct {
+	// MySQL 存储配置
+	MySQL MySQLMetricsConfig `mapstructure:"mysql"`
+	// Prometheus 配置
+	Prometheus PrometheusConfig `mapstructure:"prometheus"`
+}
+
+// MySQLMetricsConfig 是 MySQL 监控指标存储配置
+type MySQLMetricsConfig struct {
+	Enabled       bool          `mapstructure:"enabled"`        // 是否启用 MySQL 存储
+	RetentionDays int           `mapstructure:"retention_days"` // 数据保留天数（默认 30 天）
+	BatchSize     int           `mapstructure:"batch_size"`     // 批量插入大小（默认 100）
+	FlushInterval time.Duration `mapstructure:"flush_interval"` // 刷新间隔（默认 5 秒）
+}
+
+// PrometheusConfig 是 Prometheus 配置
+type PrometheusConfig struct {
+	Enabled        bool   `mapstructure:"enabled"`          // 是否启用 Prometheus 远程写入
+	RemoteWriteURL string `mapstructure:"remote_write_url"` // Prometheus Remote Write API URL
+	QueryURL       string `mapstructure:"query_url"`        // Prometheus Query API URL（用于查询，如果为空则从 remote_write_url 提取）
+	// 如果使用 Pushgateway
+	PushgatewayURL string        `mapstructure:"pushgateway_url"` // Pushgateway URL（可选，与 remote_write_url 二选一）
+	JobName        string        `mapstructure:"job_name"`        // Job 名称（默认 "mxsec-platform"）
+	Timeout        time.Duration `mapstructure:"timeout"`         // 请求超时（默认 10 秒）
 }
 
 // Load 加载配置文件
@@ -243,6 +271,32 @@ func setDefaults(cfg *Config, logFileSet bool) {
 	if cfg.Agent.WorkDir == "" {
 		cfg.Agent.WorkDir = "/var/lib/mxsec-agent"
 	}
+
+	// Metrics 默认配置
+	// 默认使用 MySQL 存储（如果未启用 Prometheus）
+	if !cfg.Metrics.Prometheus.Enabled {
+		// 默认启用 MySQL 存储
+		cfg.Metrics.MySQL.Enabled = true
+		if cfg.Metrics.MySQL.RetentionDays == 0 {
+			cfg.Metrics.MySQL.RetentionDays = 30
+		}
+		if cfg.Metrics.MySQL.BatchSize == 0 {
+			cfg.Metrics.MySQL.BatchSize = 100
+		}
+		if cfg.Metrics.MySQL.FlushInterval == 0 {
+			cfg.Metrics.MySQL.FlushInterval = 5 * time.Second
+		}
+	} else {
+		// 如果启用 Prometheus，则禁用 MySQL
+		cfg.Metrics.MySQL.Enabled = false
+		// Prometheus 配置默认值
+		if cfg.Metrics.Prometheus.JobName == "" {
+			cfg.Metrics.Prometheus.JobName = "mxsec-platform"
+		}
+		if cfg.Metrics.Prometheus.Timeout == 0 {
+			cfg.Metrics.Prometheus.Timeout = 10 * time.Second
+		}
+	}
 }
 
 // Validate 验证配置
@@ -261,6 +315,13 @@ func (c *Config) Validate() error {
 	if c.MTLS.ServerKey != "" {
 		if _, err := os.Stat(c.MTLS.ServerKey); os.IsNotExist(err) {
 			return fmt.Errorf("Server 私钥文件不存在: %s", c.MTLS.ServerKey)
+		}
+	}
+
+	// 验证 Prometheus 配置
+	if c.Metrics.Prometheus.Enabled {
+		if c.Metrics.Prometheus.RemoteWriteURL == "" && c.Metrics.Prometheus.PushgatewayURL == "" {
+			return fmt.Errorf("Prometheus 已启用但未配置 URL，请配置 remote_write_url 或 pushgateway_url")
 		}
 	}
 

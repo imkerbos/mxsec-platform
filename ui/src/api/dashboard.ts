@@ -11,7 +11,7 @@ export interface ServiceStatus {
   database: 'healthy' | 'warning' | 'error'
   agentcenter: 'healthy' | 'warning' | 'error'
   manager: 'healthy' | 'warning' | 'error'
-  baseline: 'healthy' | 'warning' | 'error'
+  // 基线检查插件在 Agent 端运行，Server 端无法直接检查其状态
 }
 
 export interface DashboardStats {

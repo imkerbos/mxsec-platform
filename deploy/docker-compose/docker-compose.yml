@@ -128,6 +128,36 @@ services:
           cpus: '0.25'
           memory: 128M
 
+  agent:
+    build:
+      context: ../..
+      dockerfile: deploy/docker-compose/Dockerfile.agent
+      args:
+        SERVER_HOST: agentcenter:6751
+        VERSION: dev-test
+        BUILD_TIME: ${BUILD_TIME:-$(date -u +"%Y-%m-%dT%H:%M:%SZ")}
+    container_name: mxcsec-agent-test
+    restart: unless-stopped
+    depends_on:
+      agentcenter:
+        condition: service_healthy
+    volumes:
+      - agent_data:/var/lib/mxcsec-agent
+      - agent_logs:/var/log/mxcsec-agent
+      - ./certs:/var/lib/mxcsec-agent/certs:ro
+    environment:
+      - TZ=Asia/Shanghai
+    networks:
+      - mxsec-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
 volumes:
   mysql_data:
     driver: local
@@ -136,6 +166,10 @@ volumes:
   manager_logs:
     driver: local
   ui_logs:
+    driver: local
+  agent_data:
+    driver: local
+  agent_logs:
     driver: local
 
 networks:

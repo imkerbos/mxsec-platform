@@ -1,5 +1,5 @@
 import apiClient from './client'
-import type { Policy, Rule } from './types'
+import type { Policy, Rule, PolicyStatistics } from './types'
 
 export const policiesApi = {
   // 获取策略列表
@@ -61,5 +61,10 @@ export const policiesApi = {
   // 删除策略
   delete: (policyId: string) => {
     return apiClient.delete(`/policies/${policyId}`)
+  },
+
+  // 获取策略统计信息
+  getStatistics: (policyId: string) => {
+    return apiClient.get<PolicyStatistics>(`/policies/${policyId}/statistics`)
   },
 }

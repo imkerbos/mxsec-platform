@@ -237,6 +237,7 @@ import { hostsApi, type HostStatusDistribution, type HostRiskDistribution } from
 import type { Host } from '@/api/types'
 import ScoreDisplay from './components/ScoreDisplay.vue'
 import { message } from 'ant-design-vue'
+import { formatDateTime } from '@/utils/date'
 
 // 注册 ECharts 组件
 use([CanvasRenderer, PieChart, TitleComponent, TooltipComponent, LegendComponent])
@@ -425,6 +426,9 @@ const columns = [
     dataIndex: 'last_heartbeat',
     key: 'last_heartbeat',
     width: 180,
+    customRender: ({ record }: { record: Host }) => {
+      return formatDateTime(record.last_heartbeat)
+    },
   },
   {
     title: '操作',

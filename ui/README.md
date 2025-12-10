@@ -114,16 +114,40 @@ npm run preview
 
 ### API 端点
 
+#### 主机管理 API
 - `GET /api/v1/hosts` - 获取主机列表
 - `GET /api/v1/hosts/:hostId` - 获取主机详情
-- `GET /api/v1/results/host/:hostId/score` - 获取主机基线得分
+- `GET /api/v1/hosts/:hostId/metrics` - 获取主机监控数据
+- `GET /api/v1/hosts/status-distribution` - 获取主机状态分布
+- `GET /api/v1/hosts/risk-distribution` - 获取主机风险分布
+
+#### 策略管理 API
 - `GET /api/v1/policies` - 获取策略列表
+- `GET /api/v1/policies/:policyId` - 获取策略详情
 - `POST /api/v1/policies` - 创建策略
 - `PUT /api/v1/policies/:policyId` - 更新策略
 - `DELETE /api/v1/policies/:policyId` - 删除策略
+- `GET /api/v1/policies/:policyId/statistics` - 获取策略统计信息
+
+#### 任务管理 API
 - `GET /api/v1/tasks` - 获取任务列表
+- `GET /api/v1/tasks/:taskId` - 获取任务详情
 - `POST /api/v1/tasks` - 创建任务
 - `POST /api/v1/tasks/:taskId/run` - 执行任务
+
+#### 检测结果 API
+- `GET /api/v1/results` - 获取检测结果列表
+- `GET /api/v1/results/:resultId` - 获取检测结果详情
+- `GET /api/v1/results/host/:hostId/score` - 获取主机基线得分
+- `GET /api/v1/results/host/:hostId/summary` - 获取主机基线摘要
+
+#### Dashboard API
+- `GET /api/v1/dashboard/stats` - 获取 Dashboard 统计数据
+
+#### 资产数据 API
+- `GET /api/v1/assets/processes` - 获取进程列表
+- `GET /api/v1/assets/ports` - 获取端口列表
+- `GET /api/v1/assets/users` - 获取账户列表
 
 ## 开发规范
 

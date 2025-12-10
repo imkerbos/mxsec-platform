@@ -12,5 +12,18 @@ var (
 		&ScanResult{},
 		&ScanTask{},
 		&User{},
+		&Process{},
+		&Port{},
+		&AssetUser{},
+		&Software{},
+		&Container{},
+		&App{},
+		&NetInterface{},
+		&Volume{},
+		&Kmod{},
+		&Service{},
+		&Cron{},
+		&HostMetric{},
+		&HostMetricHourly{},
 	}
 )
