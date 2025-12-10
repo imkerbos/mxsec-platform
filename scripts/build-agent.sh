@@ -1,38 +1,24 @@
 #!/bin/bash
-
-# Agent 构建脚本
-# 支持构建时嵌入 Server 地址等信息
+# Agent 构建脚本（用于 Air 热重载）
+# 环境变量 SERVER_HOST 和 VERSION 由 docker-compose 传递
 
 set -e
 
-# 配置
-SERVER_HOST="${BLS_SERVER_HOST:-localhost:6751}"
-VERSION="${BLS_VERSION:-1.0.0}"
+cd /workspace
+
+# 设置默认值
+SERVER_HOST=${SERVER_HOST:-agentcenter:6751}
+VERSION=${VERSION:-dev-test}
 BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-ARCH="${GOARCH:-amd64}"
-OS="${GOOS:-linux}"
 
-# 输出目录
-OUTPUT_DIR="dist/agent"
-mkdir -p "$OUTPUT_DIR"
-
-echo "Building agent..."
-echo "  Server: $SERVER_HOST"
-echo "  Version: $VERSION"
-echo "  Build time: $BUILD_TIME"
-echo "  OS/Arch: $OS/$ARCH"
-echo ""
+# 运行 go mod tidy
+go mod tidy
 
 # 构建 Agent
 go build -ldflags "\
-    -X main.serverHost=$SERVER_HOST \
-    -X main.buildVersion=$VERSION \
-    -X main.buildTime=$BUILD_TIME \
-    -s -w" \
-    -o "$OUTPUT_DIR/mxcsec-agent-$OS-$ARCH" \
-    ./cmd/agent
+  -X main.serverHost=$SERVER_HOST \
+  -X main.buildVersion=$VERSION \
+  -X main.buildTime=$BUILD_TIME" \
+  -o ./tmp/agent ./cmd/agent
 
-echo "Build completed: $OUTPUT_DIR/mxcsec-agent-$OS-$ARCH"
-
-# 显示文件信息
-ls -lh "$OUTPUT_DIR/mxcsec-agent-$OS-$ARCH"
+echo "Agent built successfully: $SERVER_HOST, $VERSION, $BUILD_TIME"

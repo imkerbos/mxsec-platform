@@ -67,3 +67,28 @@ log:
 agent:
   heartbeat_interval: 60  # 心跳间隔（秒）
   work_dir: "/var/lib/mxsec-agent"
+
+# 监控指标配置
+metrics:
+  # MySQL 存储配置（默认启用）
+  mysql:
+    enabled: true          # 默认启用 MySQL 存储（如果启用 Prometheus 则自动禁用）
+    retention_days: 30     # 数据保留天数（默认 30 天）
+    batch_size: 100        # 批量插入大小（默认 100）
+    flush_interval: 5s     # 刷新间隔（默认 5 秒）
+  
+  # Prometheus 配置（可选，启用后 MySQL 存储将自动禁用）
+  # 注意：必须配置外部 Prometheus 服务，本项目不自动拉起 Prometheus
+  prometheus:
+    enabled: false         # 是否启用 Prometheus 远程写入（启用后 MySQL 存储将禁用）
+    # 方式 1：使用 Prometheus Remote Write API（推荐）
+    # 需要配置外部 Prometheus 服务，并启用 remote_write 功能
+    remote_write_url: ""   # 例如: "http://prometheus:9090/api/v1/write"
+    # Prometheus Query API URL（用于查询监控数据）
+    # 如果为空，将自动从 remote_write_url 提取基础 URL
+    query_url: ""          # 例如: "http://prometheus:9090"（可选）
+    # 方式 2：使用 Pushgateway（可选，与 remote_write_url 二选一）
+    # 需要部署 Pushgateway 服务
+    pushgateway_url: ""    # 例如: "http://pushgateway:9091"
+    job_name: "mxsec-platform"  # Job 名称（默认 "mxsec-platform"）
+    timeout: 10s           # 请求超时（默认 10 秒）

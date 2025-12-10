@@ -93,6 +93,8 @@
   - [x] `command_exec`（命令执行）- 已完成：支持命令执行和输出匹配
   - [x] `sysctl`（内核参数检查）- 已完成：支持 sysctl 参数值检查和正则匹配
   - [x] `service_status`（服务状态检查）- 已完成：支持 systemd/SysV 服务状态检查
+  - [x] `file_owner`（文件属主检查）- 已完成：支持 uid:gid 和 username:groupname 格式，支持用户名/组名解析
+  - [x] `package_installed`（软件包检查）- 已完成：支持 RPM 和 DEB 包管理器，支持版本约束（>=、<=、==、>、<）
 - [x] 结果生成与上报 - 已完成：生成 Result，通过 bridge.Record 上报
 
 #### Baseline Plugin 示例规则
@@ -103,22 +105,22 @@
 - [x] 验证和完善示例规则 - 已完成：验证所有规则文件格式、编写测试脚本（`scripts/test-baseline-rules.sh`）、运行端到端测试验证规则执行
 
 #### Collector Plugin（Phase 1 可选，Phase 2 必须）
-- [ ] 插件入口（main.go）
-- [ ] 插件 SDK 集成（plugins.Client）
-- [ ] 采集引擎（engine）
-- [ ] 基础采集器实现（Phase 1 MVP）：
-  - [ ] 进程采集（ProcessHandler）- 基础字段
-  - [ ] 端口采集（PortHandler）- 基础字段
-  - [ ] 账户采集（UserHandler）- 基础字段
-- [ ] 完整采集器实现（Phase 2）：
-  - [ ] 软件包采集（SoftwareHandler）
-  - [ ] 容器采集（ContainerHandler）
-  - [ ] 应用采集（AppHandler）
-  - [ ] 硬件采集（NetInterfaceHandler, VolumeHandler）
-  - [ ] 内核模块采集（KmodHandler）
-  - [ ] 系统服务采集（ServiceHandler）
-  - [ ] 定时任务采集（CronHandler）
-- [ ] 资产数据上报
+- [x] 插件入口（main.go）- 已完成：main.go 实现完整，支持任务接收和定时采集
+- [x] 插件 SDK 集成（plugins.Client）- 已完成：通过 Pipe 与 Agent 通信
+- [x] 采集引擎（engine）- 已完成：Engine 实现完整，支持定时采集和任务触发
+- [x] 基础采集器实现（Phase 1 MVP）：
+  - [x] 进程采集（ProcessHandler）- 已完成：支持进程信息采集、MD5 计算、容器检测
+  - [x] 端口采集（PortHandler）- 已完成：支持 TCP/UDP 端口采集、进程关联
+  - [x] 账户采集（UserHandler）- 已完成：支持账户信息采集、密码检测
+- [x] 完整采集器实现（Phase 2）：
+  - [x] 软件包采集（SoftwareHandler）- 已完成：代码已实现，但 Server 端暂不存储（Phase 2.3）
+  - [x] 容器采集（ContainerHandler）- 已完成：代码已实现，但 Server 端暂不存储（Phase 2.3）
+  - [x] 应用采集（AppHandler）- 已完成：代码已实现，但 Server 端暂不存储（Phase 2.3）
+  - [x] 硬件采集（NetInterfaceHandler, VolumeHandler）- 已完成：代码已实现，但 Server 端暂不存储（Phase 2.3）
+  - [x] 内核模块采集（KmodHandler）- 已完成：代码已实现，但 Server 端暂不存储（Phase 2.3）
+  - [x] 系统服务采集（ServiceHandler）- 已完成：代码已实现，但 Server 端暂不存储（Phase 2.3）
+  - [x] 定时任务采集（CronHandler）- 已完成：代码已实现，但 Server 端暂不存储（Phase 2.3）
+- [x] 资产数据上报 - 已完成：通过 bridge.Record 上报，支持所有资产类型（5050-5060）
 
 ### 1.2 Server 开发
 
@@ -131,7 +133,7 @@
   - [x] `rules` 表（规则：rule_id、policy_id、category、title、description、severity、check_type、check_param、fix_suggestion 等）
   - [x] `scan_results` 表（检测结果：id、host_id、rule_id、task_id、status、actual、expected、checked_at 等）
   - [x] `scan_tasks` 表（扫描任务：task_id、policy_id、target_hosts、status、created_at、executed_at 等）
-  - [ ] 资产表（processes、ports、users、software 等）- Phase 2 实现
+  - [x] 资产表（processes、ports、asset_users）- 已完成：Process、Port、AssetUser 模型已定义并注册到 AllModels，数据库迁移会自动创建这些表
 - [x] 编写数据库迁移脚本（Gorm AutoMigrate）
 - [x] 创建初始化数据（默认策略、示例规则）
 
@@ -148,9 +150,9 @@
 - [x] 接收 Agent 数据（心跳、检测结果、资产数据）
   - [x] 解析 `PackagedData` 和 `EncodedRecord`
   - [x] 根据 `data_type` 路由到不同处理器
-    - [x] DataType=1000：心跳数据 → 更新 `hosts` 表
-    - [x] DataType=8000：基线检查结果 → 插入 `scan_results` 表
-    - [ ] DataType=5050-5064：资产数据 → 插入对应资产表（Phase 2）
+  - [x] DataType=1000：心跳数据 → 更新 `hosts` 表
+  - [x] DataType=8000：基线检查结果 → 插入 `scan_results` 表
+  - [x] DataType=5050-5064：资产数据 → 插入对应资产表（Phase 2）- 已完成：基础三种类型（进程、端口、账户）已实现存储，其他类型暂记录日志（Phase 2.3）
   - [x] 存储到数据库
 - [x] 下发任务和配置到 Agent
   - [x] 查询 `scan_tasks` 表，获取待执行任务
@@ -170,7 +172,8 @@
 
 #### Manager（HTTP API）
 - [x] `GET /api/v1/hosts`：获取主机列表（支持分页、过滤）
-- [x] `GET /api/v1/hosts/{host_id}`：获取主机详情（包含基线结果）
+- [x] `GET /api/v1/hosts/{host_id}`：获取主机详情（包含基线结果和最新监控数据）
+- [x] `GET /api/v1/hosts/{host_id}/metrics`：获取主机监控数据（支持 MySQL 和 Prometheus 查询）
 - [x] `GET /api/v1/policies`：获取策略列表
 - [x] `POST /api/v1/policies`：创建策略
 - [x] `PUT /api/v1/policies/{policy_id}`：更新策略
@@ -186,7 +189,7 @@
 - [x] `POST /api/v1/auth/logout`：用户登出
 - [x] `GET /api/v1/auth/me`：获取当前用户信息
 - [x] `GET /api/v1/dashboard/stats`：获取 Dashboard 统计数据
-- [ ] `GET /api/v1/assets/*`：获取资产数据（Phase 2）
+- [x] `GET /api/v1/assets/*`：获取资产数据（Phase 2）- 已完成：`/api/v1/assets/processes`、`/api/v1/assets/ports`、`/api/v1/assets/users` 已实现
 
 #### Manager 业务逻辑
 - [x] 主机注册与更新（基于心跳数据自动注册/更新）- 已在 AgentCenter 实现
@@ -196,7 +199,7 @@
 - [x] 基线得分计算和缓存机制 - 已完成
 - [x] 任务状态自动更新机制 - 已完成
 - [x] 错误处理和重试逻辑 - 已完成
-- [ ] 资产数据查询（按主机、按类型）- Phase 2
+- [x] 资产数据查询（按主机、按类型）- Phase 2 - 已完成：基础三种类型（进程、端口、账户）已实现查询 API
 
 #### ServiceDiscovery（服务发现）- **可选，Phase 1 可简化**
 - [ ] ServiceDiscovery 主程序入口
@@ -221,10 +224,10 @@
 #### 测试
 - [x] Agent 单元测试（配置、日志、ID 管理）- 已完成基础测试
 - [x] 插件管理单元测试 - 已完成基础测试
-- [x] Baseline Plugin 单元测试（检查器）- 已完成：所有检查器（file_kv、file_permission、file_line_match、command_exec、sysctl、service_status）测试通过
+- [x] Baseline Plugin 单元测试（检查器）- 已完成：所有检查器（file_kv、file_permission、file_line_match、command_exec、sysctl、service_status、file_owner、package_installed）测试通过
 - [x] Manager API 集成测试 - 已完成（policies、tasks、results API 测试）
 - [ ] Server 单元测试（业务逻辑层）- 部分完成
-- [ ] 端到端测试（Agent + Server + Plugin 完整流程）- 待实现
+- [x] 端到端测试（Agent + Server + Plugin 完整流程）- 已完成：包括基线检查流程和资产采集流程（进程、端口、账户）
 
 #### 文档
 - [x] Agent 部署文档（一键安装、手动安装、源码编译）
@@ -239,16 +242,16 @@
 
 ### 2.1 Agent 增强
 
-- [ ] 插件热更新机制
-- [ ] 插件版本管理
-- [ ] 更多检查器实现：
+- [x] 插件热更新机制 - 已完成：平滑切换、回滚机制、版本检测
+- [x] 插件版本管理 - 已完成：语义化版本比较、版本解析、版本历史记录
+- [x] 更多检查器实现：
   - [x] `sysctl`（内核参数检查）- 已完成（提前实现）
   - [x] `service_status`（服务状态检查）- 已完成（提前实现）
-  - [ ] `file_owner`（文件属主检查）
-  - [ ] `package_installed`（软件包检查）
-- [ ] 检查结果本地缓存（断网时暂存）
-- [ ] 资源监控与上报
-- [ ] 完整资产采集（所有类型）
+  - [x] `file_owner`（文件属主检查）- 已完成：支持 uid:gid 和 username:groupname 格式，支持用户名/组名解析
+  - [x] `package_installed`（软件包检查）- 已完成：支持 RPM 和 DEB 包管理器，支持版本约束（>=、<=、==、>、<）
+- [x] 检查结果本地缓存（断网时暂存）- 已完成：本地文件缓存、自动重试、缓存清理策略
+- [x] 资源监控与上报 - 已完成：CPU、内存、磁盘、网络指标采集和上报
+- [ ] 完整资产采集（所有类型）- Collector Plugin 已实现基础采集器，完整版待实现
 
 ### 2.2 Server 增强
 
@@ -257,15 +260,26 @@
 - [x] 检测结果查询 API（按主机、按规则、按策略）- 已完成
 - [x] 扫描任务管理 API（创建、执行、查询）- 已完成
 - [x] 统计与聚合（基线得分、通过率等）- 已完成
+- [x] 监控数据查询 API（MySQL 和 Prometheus 混合查询）- 已完成
+  - [x] Prometheus 查询客户端实现
+  - [x] MySQL 关联查询监控数据（GetHost API）
+  - [x] Prometheus + MySQL 混合查询服务
+  - [x] GET /api/v1/hosts/:host_id/metrics API 端点
 
 ### 2.3 前端 UI ✅
 
 - [x] 主机列表页面 - 已完成：支持筛选、基线得分展示、分页
-- [x] 主机详情页面（基线得分、规则列表）- 已完成：基本信息、基线得分、检查结果列表
+- [x] 主机详情页面（基线得分、规则列表）- 已完成：基本信息、基线得分、检查结果列表、性能监控数据展示
 - [x] 策略管理页面（策略列表、规则编辑）- 已完成：列表、创建、编辑、删除、启用/禁用
-- [x] 策略详情页面（基线检查详情）- 已完成：检查概览（通过率、主机数、检查项数）、检查项视角（规则列表和详情）、影响的主机列表、策略统计 API
+- [x] 策略详情页面（基线检查详情）- 已完成：检查概览（通过率、主机数、检查项数）、检查项视角（规则列表和详情）、影响的主机列表、策略统计 API 集成
 - [x] 扫描任务管理页面 - 已完成：列表、创建、执行任务
-- [ ] 统计报表页面 - 可选，后续实现
+- [x] 资产数据展示 - 已完成：资产指纹统计展示、进程列表、端口列表、用户列表
+- [x] Dashboard 页面 - 已完成：统计概览、主机状态分布、主机风险分布、基线风险 Top 3
+- [x] 前端 API 集成 - 已完成：主机监控数据 API、主机状态/风险分布 API、策略统计信息 API
+- [x] 前端 API 测试和验证 - 已完成：测试脚本、测试文档、代码质量检查
+- [x] 用户体验改进 - 已完成：全局错误提示、操作成功提示、改进 API 错误处理
+- [x] 开发文档完善 - 已完成：快速开始指南、开发指南、故障排查指南
+- [x] 统计报表页面 - 已完成：前端页面和后端 API 均已实现，包含完整的报表统计、基线得分趋势和检查结果趋势功能
 
 ---
 
@@ -288,7 +302,7 @@
 
 ### 3.3 集成与对接
 
-- [ ] Prometheus 指标导出
+- [x] Prometheus 指标导出 - 已完成：Prometheus 查询客户端和混合查询服务
 - [ ] 告警对接（Webhook、Lark、邮件等）
 - [ ] CMDB 集成
 - [ ] 日志系统集成（ELK/Loki）
@@ -318,7 +332,7 @@
 2. ✅ Phase 1.1 继续：完善插件管理（插件下载和签名验证、任务队列）- 已完成
 3. ✅ Phase 1.1 继续：插件状态采集（心跳模块）- 已完成
 4. ✅ Phase 1.1 继续：编写单元测试（Baseline Plugin 检查器测试）- 已完成，所有测试通过
-5. 🔄 Phase 1.1 继续：实现更多检查器（file_owner、package_installed 等）- 可选，后续扩展
+5. ✅ Phase 1.1 继续：实现更多检查器（file_owner、package_installed）- 已完成
 6. 🔄 Phase 1.1 继续：Baseline Plugin 示例规则（SSH、密码策略等）- 可选，后续扩展
 7. ✅ **Phase 1.2 AgentCenter 基础框架** - 已完成
 8. ✅ **Phase 1.2 继续：完善 AgentCenter（任务下发逻辑）** - 已完成

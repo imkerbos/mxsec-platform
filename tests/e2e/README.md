@@ -8,6 +8,7 @@ E2E（端到端）测试用于验证 Agent + Server + Plugin 的完整流程，�
 - 任务下发和执行
 - 检测结果上报和存储
 - 基线得分计算
+- 资产采集流程（进程、端口、账户）
 
 ## 前置要求
 
@@ -51,6 +52,9 @@ go test -tags=e2e ./tests/e2e/... -v -run TestAgentServerPluginE2E
 
 # 运行 Baseline Plugin 测试
 go test -tags=e2e ./tests/e2e/... -v -run TestBaselinePluginE2E
+
+# 运行资产采集端到端测试
+go test -tags=e2e ./tests/e2e/... -v -run TestAssetCollectionE2E
 ```
 
 ## 测试数据库管理

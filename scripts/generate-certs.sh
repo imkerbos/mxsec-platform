@@ -74,13 +74,15 @@ openssl x509 -req -days "${VALIDITY_DAYS}" \
     -extfile <(
         cat <<EOF
 [v3_req]
-keyUsage = keyEncipherment, dataEncipherment
+keyUsage = digitalSignature, keyEncipherment, dataEncipherment
 extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [alt_names]
 DNS.1 = localhost
 DNS.2 = *.local
+DNS.3 = agentcenter
+DNS.4 = agentcenter.mxsec-network
 IP.1 = 127.0.0.1
 IP.2 = ::1
 EOF
@@ -104,10 +106,18 @@ openssl x509 -req -days "${VALIDITY_DAYS}" \
     -extfile <(
         cat <<EOF
 [v3_req]
-keyUsage = keyEncipherment, dataEncipherment
+keyUsage = digitalSignature, keyEncipherment, dataEncipherment
 extendedKeyUsage = clientAuth
 EOF
     )
+
+# 同时创建 client.crt 和 client.key（Agent 代码使用的文件名）
+CLIENT_CERT="${CERT_DIR}/client.crt"
+CLIENT_KEY="${CERT_DIR}/client.key"
+cp "${AGENT_CERT}" "${CLIENT_CERT}"
+cp "${AGENT_KEY}" "${CLIENT_KEY}"
+chmod 644 "${CLIENT_CERT}"
+chmod 600 "${CLIENT_KEY}"
 
 # 清理临时文件
 rm -f "${SERVER_CSR}" "${AGENT_CSR}" "${CERT_DIR}/ca.srl"

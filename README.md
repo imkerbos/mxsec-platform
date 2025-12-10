@@ -78,9 +78,11 @@
     - 扫描任务调度（全量、单机、分组等）。
     - 检测结果接收、存储、查询 API。
     - 资产数据接收、存储、查询 API。
+    - 监控数据查询 API（支持 MySQL 和 Prometheus 混合查询）。
   - 技术栈：
     - Golang（gRPC Server + Gorm + Viper + Zap）。
     - MySQL / PostgreSQL 作为配置 & 结果存储。
+    - 支持 Prometheus 查询（可选，用于监控数据查询）。
     - 支持 mTLS 双向认证。
 
 - **mxsec-console（前端 UI）**
@@ -383,6 +385,8 @@ mxcsec-platform/
 - [x] 实现基线扫描任务管理（手动触发 / 定时扫描）。
 - [x] 实现 Dashboard 页面（统计概览）。
 - [x] 实现用户认证系统（JWT Token）。
+- [x] 完善开发文档和故障排查指南。
+- [x] 改进用户体验（错误提示、操作反馈）。
 
 ### v1.0 – OS 基线稳定版本
 
@@ -405,10 +409,18 @@ mxcsec-platform/
 
 ### 8.2 开发文档
 
+- [快速开始指南](docs/development/quick-start.md) - 快速搭建开发环境
+- [开发指南](docs/development/development-guide.md) - 开发流程和规范
+- [故障排查指南](docs/development/troubleshooting.md) - 常见问题解决方案
 - [插件开发指南](docs/development/plugin-development.md) - 如何开发插件和扩展检查器
 - [Agent 架构设计](docs/design/agent-architecture.md) - Agent 架构和设计
 - [Baseline 策略模型](docs/design/baseline-policy-model.md) - 策略模型设计
 - [Server API 设计](docs/design/server-api.md) - Server API 接口设计
+
+### 8.3 测试文档
+
+- [前端 API 集成测试](docs/testing/frontend-api-integration-test.md) - 前端 API 集成测试指南
+- [验证清单](docs/testing/verification-checklist.md) - 功能验证清单
 
 ### 8.3 其他文档
 

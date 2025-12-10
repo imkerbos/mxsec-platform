@@ -105,7 +105,7 @@ cleanup() {
     echo ""
     echo -e "${YELLOW}正在停止服务...${NC}"
     cd "$PROJECT_ROOT/deploy/docker-compose"
-    docker-compose -f docker-compose.dev.yml stop manager ui
+    docker-compose -f docker-compose.dev.yml stop agentcenter manager ui agent
     echo -e "${GREEN}服务已停止${NC}"
     exit 0
 }
@@ -113,15 +113,27 @@ cleanup() {
 # 注册清理函数
 trap cleanup SIGINT SIGTERM
 
-# 启动Manager和UI服务（前台运行，可以看到日志）
+# 启动AgentCenter、Manager、UI和Agent服务（前台运行，可以看到日志）
 echo ""
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  启动Manager和UI服务（Docker）...${NC}"
+echo -e "${GREEN}  启动AgentCenter、Manager、UI和Agent服务（Docker）...${NC}"
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo -e "  服务将在前台运行，日志会实时显示"
 echo -e "  按 ${YELLOW}Ctrl+C${NC} 停止服务"
 echo ""
 
-# 使用docker-compose启动服务（前台运行）
+# 先启动 AgentCenter（后台运行）
+echo -e "${YELLOW}先启动 AgentCenter 服务（后台）...${NC}"
+docker-compose -f docker-compose.dev.yml up -d --build agentcenter
+
+# 等待 AgentCenter 启动
+echo -e "${YELLOW}等待 AgentCenter 启动...${NC}"
+sleep 5
+
+# 启动 Agent（后台运行，使用 Rocky Linux 9）
+echo -e "${YELLOW}启动 Agent 服务（后台，Rocky Linux 9）...${NC}"
+docker-compose -f docker-compose.dev.yml up -d --build agent
+
+# 使用docker-compose启动Manager和UI服务（前台运行）
 docker-compose -f docker-compose.dev.yml up --build manager ui

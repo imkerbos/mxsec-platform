@@ -46,8 +46,8 @@ func TestAgentServerPluginE2E(t *testing.T) {
 	}()
 
 	// 2. 启动 gRPC Server（使用随机端口）
-	grpcServer, listener, _ := setupGRPCServer(t, db, logger)
-	defer grpcServer.Stop()
+	_, listener, _, cleanup := setupGRPCServer(t, db, logger)
+	defer cleanup()
 
 	// 获取 Server 地址
 	serverAddr := listener.Addr().String()
@@ -136,6 +136,9 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	err = db.AutoMigrate(
 		&model.ScanTask{},   // 依赖 Policy
 		&model.ScanResult{}, // 依赖 Host 和 Rule
+		&model.Process{},    // 资产表：进程
+		&model.Port{},       // 资产表：端口
+		&model.AssetUser{},  // 资产表：账户
 	)
 	require.NoError(t, err)
 
@@ -143,7 +146,8 @@ func setupTestDB(t *testing.T) *gorm.DB {
 }
 
 // setupGRPCServer 启动 gRPC Server
-func setupGRPCServer(t *testing.T, db *gorm.DB, logger *zap.Logger) (*grpc.Server, net.Listener, *transfer.Service) {
+// 返回 gRPC Server、监听器、Transfer 服务和清理函数
+func setupGRPCServer(t *testing.T, db *gorm.DB, logger *zap.Logger) (*grpc.Server, net.Listener, *transfer.Service, func()) {
 	// 创建监听器（随机端口）
 	listener, err := net.Listen("tcp", ":0")
 	require.NoError(t, err)
@@ -165,27 +169,51 @@ func setupGRPCServer(t *testing.T, db *gorm.DB, logger *zap.Logger) (*grpc.Serve
 	// 注册服务
 	grpcProto.RegisterTransferServer(grpcServer, transferService)
 
+	// 创建 context 用于控制任务调度器的生命周期
+	ctx, cancel := context.WithCancel(context.Background())
+
 	// 启动任务调度器（在 goroutine 中，每 1 秒检查一次，测试环境加快速度）
 	taskService := service.NewTaskService(db, logger)
+	taskDone := make(chan struct{})
 	go func() {
+		defer close(taskDone)
 		ticker := time.NewTicker(1 * time.Second) // 测试环境：每 1 秒检查一次
 		defer ticker.Stop()
 
 		// 立即执行一次
 		if err := taskService.DispatchPendingTasks(transferService); err != nil {
-			t.Logf("分发任务失败: %v", err)
+			// 忽略数据库关闭错误（测试清理阶段）
+			if err.Error() != "sql: database is closed" {
+				t.Logf("分发任务失败: %v", err)
+			}
 		}
 
 		// 定时执行
-		for range ticker.C {
-			if err := taskService.DispatchPendingTasks(transferService); err != nil {
-				t.Logf("分发任务失败: %v", err)
+		for {
+			select {
+			case <-ctx.Done():
+				return // 收到取消信号，退出
+			case <-ticker.C:
+				// 检查 context 是否已取消
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+				if err := taskService.DispatchPendingTasks(transferService); err != nil {
+					// 忽略数据库关闭错误（测试清理阶段）
+					if err.Error() != "sql: database is closed" {
+						t.Logf("分发任务失败: %v", err)
+					}
+				}
 			}
 		}
 	}()
 
 	// 启动 Server（在 goroutine 中）
+	serverDone := make(chan struct{})
 	go func() {
+		defer close(serverDone)
 		if err := grpcServer.Serve(listener); err != nil {
 			t.Logf("gRPC Server 启动失败: %v", err)
 		}
@@ -194,7 +222,28 @@ func setupGRPCServer(t *testing.T, db *gorm.DB, logger *zap.Logger) (*grpc.Serve
 	// 等待 Server 启动
 	time.Sleep(100 * time.Millisecond)
 
-	return grpcServer, listener, transferService
+	// 返回清理函数
+	cleanup := func() {
+		// 取消任务调度器的 context
+		cancel()
+		// 等待任务调度器退出（最多等待 2 秒，给 ticker 一个周期的时间）
+		select {
+		case <-taskDone:
+		case <-time.After(2 * time.Second):
+			// 静默处理，不输出日志（避免测试输出噪音）
+		}
+
+		// 优雅停止 gRPC Server
+		grpcServer.GracefulStop()
+		// 等待 Server 退出（最多等待 2 秒）
+		select {
+		case <-serverDone:
+		case <-time.After(2 * time.Second):
+			// 静默处理，不输出日志（避免测试输出噪音）
+		}
+	}
+
+	return grpcServer, listener, transferService, cleanup
 }
 
 // setupTestData 创建测试数据
@@ -526,4 +575,439 @@ func TestBaselinePluginE2E(t *testing.T) {
 		assert.NotEmpty(t, result.Status, "状态不应为空")
 		assert.Contains(t, []string{"pass", "fail", "error", "na"}, string(result.Status), "状态应该是有效值")
 	}
+}
+
+// TestAssetCollectionE2E 测试资产采集端到端流程
+func TestAssetCollectionE2E(t *testing.T) {
+	// 1. 设置测试环境
+	logger := zap.NewNop()
+	db := setupTestDB(t)
+	defer func() {
+		sqlDB, _ := db.DB()
+		if sqlDB != nil {
+			sqlDB.Close()
+		}
+	}()
+
+	// 2. 启动 gRPC Server（使用随机端口）
+	_, listener, _, cleanup := setupGRPCServer(t, db, logger)
+	defer cleanup()
+
+	// 获取 Server 地址
+	serverAddr := listener.Addr().String()
+
+	// 3. 创建测试主机
+	hostID := uuid.New().String()
+	setupTestHost(t, db, hostID)
+
+	// 4. 模拟 Agent 连接 Server
+	conn, client := connectToServer(t, serverAddr)
+	defer conn.Close()
+
+	// 5. 测试进程资产采集
+	t.Run("进程资产采集", func(t *testing.T) {
+		testProcessAssetCollection(t, db, client, hostID)
+	})
+
+	// 6. 测试端口资产采集
+	t.Run("端口资产采集", func(t *testing.T) {
+		testPortAssetCollection(t, db, client, hostID)
+	})
+
+	// 7. 测试账户资产采集
+	t.Run("账户资产采集", func(t *testing.T) {
+		testUserAssetCollection(t, db, client, hostID)
+	})
+}
+
+// setupTestHost 创建测试主机
+func setupTestHost(t *testing.T, db *gorm.DB, hostID string) {
+	host := &model.Host{
+		HostID:    hostID,
+		Hostname:  "test-host-asset",
+		OSFamily:  "rocky",
+		OSVersion: "9.3",
+		Status:    model.HostStatusOnline,
+	}
+	require.NoError(t, db.Create(host).Error)
+}
+
+// testProcessAssetCollection 测试进程资产采集
+func testProcessAssetCollection(t *testing.T, db *gorm.DB, client grpcProto.TransferClient, hostID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 创建双向流
+	stream, err := client.Transfer(ctx)
+	require.NoError(t, err)
+
+	// 先发送心跳建立连接
+	heartbeat := &grpcProto.PackagedData{
+		AgentId:      hostID,
+		Hostname:     "test-host-asset",
+		Version:      "1.0.0",
+		IntranetIpv4: []string{"192.168.1.100"},
+		Records:      []*grpcProto.EncodedRecord{},
+	}
+	err = stream.Send(heartbeat)
+	require.NoError(t, err)
+
+	// 准备进程资产数据
+	processAssets := []map[string]interface{}{
+		{
+			"pid":          "1",
+			"ppid":         "0",
+			"cmdline":      "/sbin/init",
+			"exe":          "/sbin/init",
+			"exe_hash":     "abc123def456",
+			"container_id": "",
+			"uid":          "0",
+			"gid":          "0",
+			"username":     "root",
+			"groupname":    "root",
+			"collected_at": time.Now().Format(time.RFC3339),
+		},
+		{
+			"pid":          "100",
+			"ppid":         "1",
+			"cmdline":      "/usr/bin/sshd",
+			"exe":          "/usr/bin/sshd",
+			"exe_hash":     "def456ghi789",
+			"container_id": "",
+			"uid":          "0",
+			"gid":          "0",
+			"username":     "root",
+			"groupname":    "root",
+			"collected_at": time.Now().Format(time.RFC3339),
+		},
+	}
+
+	// 序列化资产数据
+	assetData, err := json.Marshal(processAssets)
+	require.NoError(t, err)
+
+	// 创建 bridge.Record
+	bridgeRecord := &bridge.Record{
+		DataType:  5050, // 进程数据类型
+		Timestamp: time.Now().UnixNano(),
+		Data: &bridge.Payload{
+			Fields: map[string]string{
+				"data": string(assetData),
+			},
+		},
+	}
+
+	// 序列化为 protobuf
+	recordData, err := proto.Marshal(bridgeRecord)
+	require.NoError(t, err)
+
+	assetRecord := &grpcProto.EncodedRecord{
+		DataType:  5050, // 进程数据类型
+		Data:      recordData,
+		Timestamp: time.Now().UnixNano(),
+	}
+
+	assetPackage := &grpcProto.PackagedData{
+		AgentId:      hostID,
+		Hostname:     "test-host-asset",
+		Version:      "1.0.0",
+		IntranetIpv4: []string{"192.168.1.100"},
+		Records:      []*grpcProto.EncodedRecord{assetRecord},
+	}
+
+	err = stream.Send(assetPackage)
+	require.NoError(t, err)
+
+	// 等待处理
+	time.Sleep(500 * time.Millisecond)
+
+	// 验证进程数据已存储
+	var processes []model.Process
+	err = db.Where("host_id = ?", hostID).Find(&processes).Error
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(processes), 2, "应该有至少2个进程")
+
+	// 验证进程数据内容
+	foundInit := false
+	foundSSHD := false
+	for _, proc := range processes {
+		if proc.PID == "1" && proc.Cmdline == "/sbin/init" {
+			foundInit = true
+			assert.Equal(t, "0", proc.PPID)
+			assert.Equal(t, "root", proc.Username)
+		}
+		if proc.PID == "100" && proc.Cmdline == "/usr/bin/sshd" {
+			foundSSHD = true
+			assert.Equal(t, "1", proc.PPID)
+			assert.Equal(t, "root", proc.Username)
+		}
+	}
+	assert.True(t, foundInit, "应该找到 init 进程")
+	assert.True(t, foundSSHD, "应该找到 sshd 进程")
+
+	stream.CloseSend()
+}
+
+// testPortAssetCollection 测试端口资产采集
+func testPortAssetCollection(t *testing.T, db *gorm.DB, client grpcProto.TransferClient, hostID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 创建双向流
+	stream, err := client.Transfer(ctx)
+	require.NoError(t, err)
+
+	// 先发送心跳建立连接
+	heartbeat := &grpcProto.PackagedData{
+		AgentId:      hostID,
+		Hostname:     "test-host-asset",
+		Version:      "1.0.0",
+		IntranetIpv4: []string{"192.168.1.100"},
+		Records:      []*grpcProto.EncodedRecord{},
+	}
+	err = stream.Send(heartbeat)
+	require.NoError(t, err)
+
+	// 准备端口资产数据
+	portAssets := []map[string]interface{}{
+		{
+			"protocol":     "tcp",
+			"port":         22,
+			"state":        "LISTEN",
+			"pid":          "100",
+			"process_name": "sshd",
+			"container_id": "",
+			"collected_at": time.Now().Format(time.RFC3339),
+		},
+		{
+			"protocol":     "tcp",
+			"port":         80,
+			"state":        "LISTEN",
+			"pid":          "200",
+			"process_name": "nginx",
+			"container_id": "",
+			"collected_at": time.Now().Format(time.RFC3339),
+		},
+		{
+			"protocol":     "udp",
+			"port":         53,
+			"state":        "LISTEN",
+			"pid":          "300",
+			"process_name": "systemd-resolved",
+			"container_id": "",
+			"collected_at": time.Now().Format(time.RFC3339),
+		},
+	}
+
+	// 序列化资产数据
+	assetData, err := json.Marshal(portAssets)
+	require.NoError(t, err)
+
+	// 创建 bridge.Record
+	bridgeRecord := &bridge.Record{
+		DataType:  5051, // 端口数据类型
+		Timestamp: time.Now().UnixNano(),
+		Data: &bridge.Payload{
+			Fields: map[string]string{
+				"data": string(assetData),
+			},
+		},
+	}
+
+	// 序列化为 protobuf
+	recordData, err := proto.Marshal(bridgeRecord)
+	require.NoError(t, err)
+
+	assetRecord := &grpcProto.EncodedRecord{
+		DataType:  5051, // 端口数据类型
+		Data:      recordData,
+		Timestamp: time.Now().UnixNano(),
+	}
+
+	assetPackage := &grpcProto.PackagedData{
+		AgentId:      hostID,
+		Hostname:     "test-host-asset",
+		Version:      "1.0.0",
+		IntranetIpv4: []string{"192.168.1.100"},
+		Records:      []*grpcProto.EncodedRecord{assetRecord},
+	}
+
+	err = stream.Send(assetPackage)
+	require.NoError(t, err)
+
+	// 等待处理
+	time.Sleep(500 * time.Millisecond)
+
+	// 验证端口数据已存储
+	var ports []model.Port
+	err = db.Where("host_id = ?", hostID).Find(&ports).Error
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(ports), 3, "应该有至少3个端口")
+
+	// 验证端口数据内容
+	foundSSH := false
+	foundHTTP := false
+	foundDNS := false
+	for _, port := range ports {
+		if port.Protocol == "tcp" && port.Port == 22 {
+			foundSSH = true
+			assert.Equal(t, "LISTEN", port.State)
+			assert.Equal(t, "100", port.PID)
+			assert.Equal(t, "sshd", port.ProcessName)
+		}
+		if port.Protocol == "tcp" && port.Port == 80 {
+			foundHTTP = true
+			assert.Equal(t, "LISTEN", port.State)
+			assert.Equal(t, "200", port.PID)
+			assert.Equal(t, "nginx", port.ProcessName)
+		}
+		if port.Protocol == "udp" && port.Port == 53 {
+			foundDNS = true
+			assert.Equal(t, "LISTEN", port.State)
+			assert.Equal(t, "300", port.PID)
+			assert.Equal(t, "systemd-resolved", port.ProcessName)
+		}
+	}
+	assert.True(t, foundSSH, "应该找到 SSH 端口")
+	assert.True(t, foundHTTP, "应该找到 HTTP 端口")
+	assert.True(t, foundDNS, "应该找到 DNS 端口")
+
+	stream.CloseSend()
+}
+
+// testUserAssetCollection 测试账户资产采集
+func testUserAssetCollection(t *testing.T, db *gorm.DB, client grpcProto.TransferClient, hostID string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// 创建双向流
+	stream, err := client.Transfer(ctx)
+	require.NoError(t, err)
+
+	// 先发送心跳建立连接
+	heartbeat := &grpcProto.PackagedData{
+		AgentId:      hostID,
+		Hostname:     "test-host-asset",
+		Version:      "1.0.0",
+		IntranetIpv4: []string{"192.168.1.100"},
+		Records:      []*grpcProto.EncodedRecord{},
+	}
+	err = stream.Send(heartbeat)
+	require.NoError(t, err)
+
+	// 准备账户资产数据
+	userAssets := []map[string]interface{}{
+		{
+			"username":     "root",
+			"uid":          "0",
+			"gid":          "0",
+			"groupname":    "root",
+			"home_dir":     "/root",
+			"shell":        "/bin/bash",
+			"comment":      "root",
+			"has_password": true,
+			"collected_at": time.Now().Format(time.RFC3339),
+		},
+		{
+			"username":     "testuser",
+			"uid":          "1000",
+			"gid":          "1000",
+			"groupname":    "testuser",
+			"home_dir":     "/home/testuser",
+			"shell":        "/bin/bash",
+			"comment":      "Test User",
+			"has_password": true,
+			"collected_at": time.Now().Format(time.RFC3339),
+		},
+		{
+			"username":     "nobody",
+			"uid":          "99",
+			"gid":          "99",
+			"groupname":    "nobody",
+			"home_dir":     "/",
+			"shell":        "/sbin/nologin",
+			"comment":      "Unprivileged User",
+			"has_password": false,
+			"collected_at": time.Now().Format(time.RFC3339),
+		},
+	}
+
+	// 序列化资产数据
+	assetData, err := json.Marshal(userAssets)
+	require.NoError(t, err)
+
+	// 创建 bridge.Record
+	bridgeRecord := &bridge.Record{
+		DataType:  5052, // 账户数据类型
+		Timestamp: time.Now().UnixNano(),
+		Data: &bridge.Payload{
+			Fields: map[string]string{
+				"data": string(assetData),
+			},
+		},
+	}
+
+	// 序列化为 protobuf
+	recordData, err := proto.Marshal(bridgeRecord)
+	require.NoError(t, err)
+
+	assetRecord := &grpcProto.EncodedRecord{
+		DataType:  5052, // 账户数据类型
+		Data:      recordData,
+		Timestamp: time.Now().UnixNano(),
+	}
+
+	assetPackage := &grpcProto.PackagedData{
+		AgentId:      hostID,
+		Hostname:     "test-host-asset",
+		Version:      "1.0.0",
+		IntranetIpv4: []string{"192.168.1.100"},
+		Records:      []*grpcProto.EncodedRecord{assetRecord},
+	}
+
+	err = stream.Send(assetPackage)
+	require.NoError(t, err)
+
+	// 等待处理
+	time.Sleep(500 * time.Millisecond)
+
+	// 验证账户数据已存储
+	var users []model.AssetUser
+	err = db.Where("host_id = ?", hostID).Find(&users).Error
+	require.NoError(t, err)
+	assert.GreaterOrEqual(t, len(users), 3, "应该有至少3个账户")
+
+	// 验证账户数据内容
+	foundRoot := false
+	foundTestUser := false
+	foundNobody := false
+	for _, user := range users {
+		if user.Username == "root" {
+			foundRoot = true
+			assert.Equal(t, "0", user.UID)
+			assert.Equal(t, "0", user.GID)
+			assert.Equal(t, "/root", user.HomeDir)
+			assert.Equal(t, "/bin/bash", user.Shell)
+			assert.True(t, user.HasPassword)
+		}
+		if user.Username == "testuser" {
+			foundTestUser = true
+			assert.Equal(t, "1000", user.UID)
+			assert.Equal(t, "1000", user.GID)
+			assert.Equal(t, "/home/testuser", user.HomeDir)
+			assert.True(t, user.HasPassword)
+		}
+		if user.Username == "nobody" {
+			foundNobody = true
+			assert.Equal(t, "99", user.UID)
+			assert.Equal(t, "99", user.GID)
+			assert.Equal(t, "/sbin/nologin", user.Shell)
+			assert.False(t, user.HasPassword)
+		}
+	}
+	assert.True(t, foundRoot, "应该找到 root 账户")
+	assert.True(t, foundTestUser, "应该找到 testuser 账户")
+	assert.True(t, foundNobody, "应该找到 nobody 账户")
+
+	stream.CloseSend()
 }

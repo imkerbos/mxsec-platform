@@ -162,7 +162,7 @@ dev-docker-up:
 # Docker 开发环境启动（后台模式）
 dev-docker-up-d:
 	@echo "Starting Docker development environment in background..."
-	@cd deploy/docker-compose && docker-compose -f docker-compose.dev.yml up -d --build
+	@cd deploy/docker-compose && docker-compose -f docker-compose.dev.yml up -d --build agentcenter manager ui agent
 
 # Docker 开发环境停止
 dev-docker-down:
