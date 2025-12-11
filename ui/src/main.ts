@@ -31,6 +31,7 @@ use([
 
 import App from './App.vue'
 import router from './router'
+import { useSiteConfigStore } from './stores/site-config'
 
 const app = createApp(App)
 
@@ -38,5 +39,9 @@ app.use(createPinia())
 app.use(router)
 app.use(Antd)
 app.component('v-chart', ECharts)
+
+// 初始化站点配置
+const siteConfigStore = useSiteConfigStore()
+siteConfigStore.init()
 
 app.mount('#app')

@@ -102,7 +102,7 @@
 - [x] 密码策略检查（PASS_MAX_DAYS）- 已完成：password-policy.json（2条规则）
 - [x] 文件权限检查（/etc/passwd, /etc/shadow）- 已完成：file-permissions.json（3条规则）
 - [x] 至少 3 条示例规则用于测试 - 已完成：共5个策略文件，包含多个规则
-- [x] 验证和完善示例规则 - 已完成：验证所有规则文件格式、编写测试脚本（`scripts/test-baseline-rules.sh`）、运行端到端测试验证规则执行
+- [x] 验证和完善示例规则 - 已完成：验证所有规则文件格式、运行端到端测试验证规则执行
 
 #### Collector Plugin（Phase 1 可选，Phase 2 必须）
 - [x] 插件入口（main.go）- 已完成：main.go 实现完整，支持任务接收和定时采集
@@ -356,6 +356,50 @@
 
 ---
 
+## 已知问题（待修复）
+
+### API 接口问题
+
+#### 1. POST /api/v1/policies 创建策略接口失败（HTTP 400）
+
+**问题描述**：
+- 在 API 测试中发现 `POST /api/v1/policies` 接口返回 HTTP 400 错误
+- 测试时间：2025-12-11
+- 测试场景：创建新策略时失败
+
+**可能原因**：
+- 请求数据格式验证问题
+- 必填字段缺失或格式不正确
+- 数据验证逻辑错误
+
+**待修复**：
+- [ ] 检查 `internal/server/manager/api/policies.go` 中的 `CreatePolicy` 方法
+- [ ] 验证请求数据格式和验证逻辑
+- [ ] 检查错误响应信息，确保返回清晰的错误提示
+- [ ] 添加单元测试覆盖创建策略的各种场景
+
+---
+
+#### 2. POST /api/v1/tasks/:task_id/run 运行任务接口失败（HTTP 400）
+
+**问题描述**：
+- 在 API 测试中发现 `POST /api/v1/tasks/:task_id/run` 接口返回 HTTP 400 错误
+- 测试时间：2025-12-11
+- 测试场景：尝试运行一个已经是 `running` 状态的任务时失败
+
+**可能原因**：
+- 任务状态验证逻辑过于严格
+- 不允许重复运行正在执行的任务（这是正常行为，但错误提示可能不清晰）
+- 任务状态检查逻辑问题
+
+**待修复**：
+- [ ] 检查 `internal/server/manager/api/tasks.go` 中的 `RunTask` 方法
+- [ ] 验证任务状态检查逻辑
+- [ ] 如果任务已在运行中，应该返回更友好的错误提示（如 HTTP 409 Conflict）
+- [ ] 添加单元测试覆盖各种任务状态场景（pending、running、completed、failed）
+
+---
+
 ## Server 端开发详细任务分解
 
 > **当前重点**：Phase 1.2 Server 开发
@@ -467,6 +511,33 @@
 **额外完成**：
 - ✅ 实现基线得分计算和缓存机制
 - ✅ 实现任务状态自动更新机制（`internal/server/agentcenter/service/task_status.go`）
+
+---
+
+### 代码结构重构（优先级：P2）✅
+
+**目标**：优化代码结构，遵循最佳实践，使 main.go 更简洁，路由和中间件独立维护。
+
+**步骤**：
+1. ✅ 重构 Manager main.go
+   - ✅ 创建 `internal/server/manager/router` 包，提取所有路由设置逻辑
+   - ✅ 创建 `internal/server/manager/middleware` 包，提取中间件
+   - ✅ 创建 `internal/server/manager/setup` 包，提取所有初始化逻辑
+   - ✅ 简化 `cmd/server/manager/main.go`（从 171 行减少到约 60 行）
+2. ✅ 重构 AgentCenter main.go
+   - ✅ 创建 `internal/server/agentcenter/server` 包，提取 gRPC Server 创建逻辑
+   - ✅ 创建 `internal/server/agentcenter/scheduler` 包，提取任务调度器
+   - ✅ 创建 `internal/server/agentcenter/setup` 包，提取所有初始化逻辑
+   - ✅ 简化 `cmd/server/agentcenter/main.go`（从 129 行减少到约 50 行）
+3. ✅ 验证编译隔离：确保 agent、agentcenter、manager 独立编译，不会相互包含代码
+
+**完成时间**：2024-12-11（首次重构），2024-12-XX（初始化逻辑提取）
+
+**重构结果**：
+- Manager: main.go 约 60 行，setup/init.go 约 144 行，router.go 219 行，middleware.go 48 行
+- AgentCenter: main.go 约 50 行，setup/init.go 约 139 行，server.go 63 行，scheduler.go 31 行
+- 代码结构更清晰，符合 Go 最佳实践
+- 初始化逻辑完全独立，main.go 只负责启动流程和信号处理
 - ✅ 实现错误处理和重试逻辑（`internal/server/agentcenter/service/retry.go`）
 - ✅ 编写 Manager API 集成测试（`internal/server/manager/api/integration_test.go`）
 

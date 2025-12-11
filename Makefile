@@ -186,6 +186,11 @@ dev-server:
 	@make build-server
 	@./dist/server/manager -config configs/server.yaml
 
+# 安装前端依赖
+ui-deps:
+	@echo "Installing UI dependencies..."
+	@cd ui && npm install
+
 # 本地开发启动（仅前端）
 dev-ui:
 	@echo "Starting frontend UI..."

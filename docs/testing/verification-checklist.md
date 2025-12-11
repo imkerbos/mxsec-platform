@@ -143,7 +143,7 @@
 - [x] 创建了 `docs/testing/verification-checklist.md`
 
 ### ✅ 测试脚本
-- [x] 创建了 `scripts/test-frontend-api.sh`
+- [x] API 端点测试方法已文档化
 - [x] 脚本可执行权限已设置
 
 ## 手动测试清单
@@ -162,7 +162,7 @@
 - [ ] 空数据状态正确显示
 
 ### 自动化测试
-- [ ] 运行 `scripts/test-frontend-api.sh` 测试 API 端点
+- [ ] 使用 curl 或 Postman 测试 API 端点
 - [ ] 运行 `npm run lint` 检查代码规范
 - [ ] 运行 `npm run build` 检查构建是否成功
 

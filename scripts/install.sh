@@ -11,8 +11,14 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# 默认配置（可通过 URL 参数覆盖）
-SERVER_HOST="${BLS_SERVER_HOST:-localhost:6751}"
+# 默认配置（可通过环境变量覆盖）
+# SERVER_HOST 用于下载安装包，应该指向 Manager HTTP 服务器（例如：10.0.0.1:8080）
+# BLS_SERVER_HOST 用于 Agent 连接，应该指向 AgentCenter gRPC 服务器（例如：10.0.0.1:6751）
+# BLS_BUSINESS_LINE 业务线标识（可选，如果设置，Agent 安装后会自动绑定到该业务线）
+# 如果未设置，将从脚本中自动替换（由 Manager API 动态替换）
+SERVER_HOST="${BLS_HTTP_SERVER:-localhost:8080}"
+AGENT_SERVER_HOST="${BLS_SERVER_HOST:-localhost:6751}"
+BUSINESS_LINE="${BLS_BUSINESS_LINE:-}"
 ARCH="${BLS_ARCH:-$(uname -m)}"
 OS_TYPE="${BLS_OS_TYPE:-}"
 
@@ -70,6 +76,7 @@ download_package() {
     echo -e "${GREEN}Downloading agent package...${NC}"
     
     # 构建下载 URL
+    # SERVER_HOST 在脚本中会被替换为实际的 HTTP 服务器地址
     DOWNLOAD_URL="http://${SERVER_HOST}/api/v1/agent/download/${PKG_TYPE}/${ARCH}"
     
     TEMP_DIR=$(mktemp -d)
@@ -108,9 +115,32 @@ install_package() {
     rmdir "$(dirname "$PACKAGE_FILE")"
 }
 
+# 配置业务线环境变量（如果提供了）
+configure_business_line() {
+    if [ -n "$BUSINESS_LINE" ]; then
+        echo -e "${GREEN}Configuring business line: ${BUSINESS_LINE}${NC}"
+        
+        # 创建 systemd override 目录
+        OVERRIDE_DIR="/etc/systemd/system/mxcsec-agent.service.d"
+        mkdir -p "$OVERRIDE_DIR"
+        
+        # 创建 override 配置文件
+        OVERRIDE_FILE="$OVERRIDE_DIR/business-line.conf"
+        cat > "$OVERRIDE_FILE" <<EOF
+[Service]
+Environment="BLS_BUSINESS_LINE=${BUSINESS_LINE}"
+EOF
+        
+        echo -e "${GREEN}Business line configured in ${OVERRIDE_FILE}${NC}"
+    fi
+}
+
 # 启动服务
 start_service() {
     echo -e "${GREEN}Starting agent service...${NC}"
+    
+    # 配置业务线（如果提供了）
+    configure_business_line
     
     systemctl daemon-reload
     systemctl enable mxcsec-agent
@@ -145,7 +175,8 @@ main() {
     determine_package_manager
     
     echo -e "${GREEN}Detected: ${OS_TYPE} (${ARCH})${NC}"
-    echo -e "${GREEN}Server: ${SERVER_HOST}${NC}"
+    echo -e "${GREEN}HTTP Server: ${SERVER_HOST}${NC}"
+    echo -e "${GREEN}Agent Server: ${AGENT_SERVER_HOST}${NC}"
     echo ""
     
     # 下载并安装

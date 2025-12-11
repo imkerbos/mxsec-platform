@@ -7,7 +7,7 @@
 运行自动化测试脚本：
 
 ```bash
-./scripts/test-frontend-api.sh
+# 使用 curl 或 Postman 手动测试 API 端点
 ```
 
 脚本会自动：
@@ -198,23 +198,23 @@ npm run lint
 
 ### 使用测试脚本
 
-项目提供了一个自动化测试脚本 `scripts/test-frontend-api.sh`，可以快速验证所有 API 端点。
+可以使用 curl 或 Postman 手动测试所有 API 端点。
 
 #### 基本使用
 
 ```bash
 # 使用默认配置（admin/admin123）
-./scripts/test-frontend-api.sh
+# 使用 curl 或 Postman 手动测试 API 端点
 
 # 自定义 API 地址和认证信息
 export API_BASE_URL="http://localhost:8080/api/v1"
 export USERNAME="admin"
 export PASSWORD="admin123"
-./scripts/test-frontend-api.sh
+# 使用 curl 或 Postman 手动测试 API 端点
 
 # 或直接提供 Token
 export TOKEN="your-jwt-token"
-./scripts/test-frontend-api.sh
+# 使用 curl 或 Postman 手动测试 API 端点
 ```
 
 #### 测试脚本功能

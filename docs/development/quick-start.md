@@ -92,7 +92,7 @@ npm run dev
 运行自动化测试脚本：
 
 ```bash
-./scripts/test-frontend-api.sh
+# 使用 curl 或 Postman 手动测试 API 端点
 ```
 
 ### 5.2 检查服务状态

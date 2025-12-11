@@ -19,6 +19,11 @@ export default defineConfig({
         target: process.env.VITE_API_TARGET || 'http://manager:8080',
         changeOrigin: true,
       },
+      '/uploads': {
+        // 代理静态文件服务（Logo 等上传的文件）
+        target: process.env.VITE_API_TARGET || 'http://manager:8080',
+        changeOrigin: true,
+      },
     },
   },
 })

@@ -35,6 +35,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '主机详情' },
       },
       {
+        path: 'business-lines',
+        name: 'BusinessLines',
+        component: () => import('@/views/BusinessLines/index.vue'),
+        meta: { title: '业务线管理' },
+      },
+      {
         path: 'policies',
         name: 'Policies',
         component: () => import('@/views/Policies/index.vue'),
@@ -106,6 +112,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/System/Reports.vue'),
         meta: { title: '报告管理' },
       },
+      {
+        path: 'alerts',
+        name: 'Alerts',
+        component: () => import('@/views/Alerts/index.vue'),
+        meta: { title: '告警管理' },
+      },
     ],
   },
 ]
@@ -118,6 +130,20 @@ const router = createRouter({
 // 路由守卫
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
+  const { useSiteConfigStore } = await import('@/stores/site-config')
+  const siteConfigStore = useSiteConfigStore()
+
+  // 初始化站点配置（如果还未初始化）
+  if (!siteConfigStore.config.site_name || siteConfigStore.config.site_name === '矩阵云安全平台') {
+    await siteConfigStore.init()
+  }
+
+  // 更新页面标题
+  if (to.meta.title) {
+    document.title = `${to.meta.title} - ${siteConfigStore.siteName}`
+  } else {
+    document.title = siteConfigStore.siteName
+  }
 
   // 公开路由（如登录页）直接放行
   if (to.meta.public) {

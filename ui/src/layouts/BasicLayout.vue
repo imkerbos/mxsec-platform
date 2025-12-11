@@ -4,9 +4,15 @@
     <a-layout-header class="top-header">
       <div class="header-left">
         <div class="logo-container">
-          <div class="logo-icon">M</div>
+          <img
+            v-if="siteConfigStore.siteLogo"
+            :src="siteConfigStore.siteLogo"
+            alt="Logo"
+            class="logo-image"
+          />
+          <div v-else class="logo-icon">M</div>
           <div class="logo-text">
-            <div class="logo-title">矩阵云安全平台</div>
+            <div class="logo-title">{{ siteConfigStore.siteName }}</div>
             <div class="logo-version">V1.0.0</div>
           </div>
         </div>
@@ -45,56 +51,65 @@
         theme="light"
         :trigger="null"
       >
-        <div class="sider-content">
-          <a-menu
-            v-model:selectedKeys="selectedKeys"
-            v-model:openKeys="openKeys"
-            theme="light"
-            mode="inline"
-            :inline-collapsed="collapsed"
-            @click="handleMenuClick"
-          >
-            <a-menu-item key="dashboard">
-              <template #icon>
-                <DashboardOutlined />
-              </template>
-              <span>安全概览</span>
-            </a-menu-item>
-            <a-sub-menu key="assets-menu">
-              <template #icon>
-                <DatabaseOutlined />
-              </template>
-              <template #title>资产中心</template>
-              <a-menu-item key="hosts">主机列表</a-menu-item>
-            </a-sub-menu>
-            <a-sub-menu key="baseline-menu">
-              <template #icon>
-                <SafetyOutlined />
-              </template>
-              <template #title>基线安全</template>
-              <a-menu-item key="policies">基线检查</a-menu-item>
-              <a-menu-item key="tasks">扫描任务</a-menu-item>
-            </a-sub-menu>
-            <a-sub-menu key="system-menu">
-              <template #icon>
-                <SettingOutlined />
-              </template>
-              <template #title>系统管理</template>
-              <a-menu-item key="system-collection">平台授权</a-menu-item>
-              <a-menu-item key="system-tasks">任务列表</a-menu-item>
-              <a-menu-item key="system-components">组件列表</a-menu-item>
-              <a-menu-item key="system-policy">组件策略</a-menu-item>
-              <a-menu-item key="system-install">安装配置</a-menu-item>
-              <a-menu-item key="users">用户管理</a-menu-item>
-              <a-menu-item key="system-settings">基本设置</a-menu-item>
-              <a-menu-item key="system-notification">通知管理</a-menu-item>
-              <a-menu-item key="system-reports">报告管理</a-menu-item>
-            </a-sub-menu>
-          </a-menu>
-        </div>
-        <div class="sider-trigger" @click="collapsed = !collapsed">
-          <MenuFoldOutlined v-if="!collapsed" />
-          <MenuUnfoldOutlined v-else />
+        <div class="sider-wrapper">
+          <div class="sider-content">
+            <a-menu
+              v-model:selectedKeys="selectedKeys"
+              v-model:openKeys="openKeys"
+              theme="light"
+              mode="inline"
+              :inline-collapsed="collapsed"
+              @click="handleMenuClick"
+            >
+              <a-menu-item key="dashboard">
+                <template #icon>
+                  <DashboardOutlined />
+                </template>
+                <span>安全概览</span>
+              </a-menu-item>
+              <a-sub-menu key="assets-menu">
+                <template #icon>
+                  <DatabaseOutlined />
+                </template>
+                <template #title>资产中心</template>
+                <a-menu-item key="hosts">主机列表</a-menu-item>
+                <a-menu-item key="business-lines">业务线管理</a-menu-item>
+              </a-sub-menu>
+              <a-sub-menu key="baseline-menu">
+                <template #icon>
+                  <SafetyOutlined />
+                </template>
+                <template #title>基线安全</template>
+                <a-menu-item key="policies">基线检查</a-menu-item>
+                <a-menu-item key="tasks">扫描任务</a-menu-item>
+              </a-sub-menu>
+              <a-menu-item key="alerts">
+                <template #icon>
+                  <BellOutlined />
+                </template>
+                <span>告警管理</span>
+              </a-menu-item>
+              <a-sub-menu key="system-menu">
+                <template #icon>
+                  <SettingOutlined />
+                </template>
+                <template #title>系统管理</template>
+                <a-menu-item key="system-collection">平台授权</a-menu-item>
+                <a-menu-item key="system-tasks">任务列表</a-menu-item>
+                <a-menu-item key="system-components">组件列表</a-menu-item>
+                <a-menu-item key="system-policy">组件策略</a-menu-item>
+                <a-menu-item key="system-install">安装配置</a-menu-item>
+                <a-menu-item key="users">用户管理</a-menu-item>
+                <a-menu-item key="system-settings">基本设置</a-menu-item>
+                <a-menu-item key="system-notification">通知管理</a-menu-item>
+                <a-menu-item key="system-reports">报告管理</a-menu-item>
+              </a-sub-menu>
+            </a-menu>
+          </div>
+          <div class="sider-trigger" @click="collapsed = !collapsed">
+            <MenuFoldOutlined v-if="!collapsed" />
+            <MenuUnfoldOutlined v-else />
+          </div>
         </div>
       </a-layout-sider>
 
@@ -143,15 +158,24 @@ import {
   DownOutlined,
   LogoutOutlined,
   KeyOutlined,
+  BellOutlined,
 } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { useSiteConfigStore } from '@/stores/site-config'
 import { authApi } from '@/api/auth'
 import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
+import { onMounted } from 'vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const siteConfigStore = useSiteConfigStore()
+
+// 初始化站点配置
+onMounted(() => {
+  siteConfigStore.init()
+})
 
 const collapsed = ref(false)
 const selectedKeys = ref<string[]>([])
@@ -195,6 +219,9 @@ watch(
     } else if (name === 'Hosts' || name === 'HostDetail') {
       selectedKeys.value = ['hosts']
       openKeys.value = ['assets-menu']
+    } else if (name === 'BusinessLines') {
+      selectedKeys.value = ['business-lines']
+      openKeys.value = ['assets-menu']
     } else if (name === 'Policies' || name === 'PolicyDetail') {
       selectedKeys.value = ['policies']
       openKeys.value = ['baseline-menu']
@@ -228,6 +255,9 @@ watch(
     } else if (name === 'SystemReports') {
       selectedKeys.value = ['system-reports']
       openKeys.value = ['system-menu']
+    } else if (name === 'Alerts') {
+      selectedKeys.value = ['alerts']
+      openKeys.value = []
     }
   },
   { immediate: true }
@@ -238,6 +268,8 @@ const handleMenuClick = ({ key }: { key: string }) => {
     router.push('/dashboard')
   } else if (key === 'hosts') {
     router.push('/hosts')
+  } else if (key === 'business-lines') {
+    router.push('/business-lines')
   } else if (key === 'policies') {
     router.push('/policies')
   } else if (key === 'tasks') {
@@ -260,6 +292,8 @@ const handleMenuClick = ({ key }: { key: string }) => {
     router.push('/system/install')
   } else if (key === 'system-reports') {
     router.push('/system/reports')
+  } else if (key === 'alerts') {
+    router.push('/alerts')
   }
 }
 
@@ -346,6 +380,16 @@ const resetChangePasswordForm = () => {
   color: #fff;
   font-weight: bold;
   font-size: 18px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.logo-image {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+  margin-right: 12px;
+  flex-shrink: 0;
 }
 
 .logo-text {
@@ -387,29 +431,78 @@ const resetChangePasswordForm = () => {
 
 /* 左侧导航栏 */
 .sider {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 64px);
-  max-height: calc(100vh - 64px);
-  position: fixed;
-  left: 0;
-  top: 64px;
-  bottom: 0;
+  display: flex !important;
+  flex-direction: column !important;
+  position: fixed !important;
+  left: 0 !important;
+  top: 64px !important;
+  height: calc(100vh - 64px) !important;
+  max-height: calc(100vh - 64px) !important;
   border-right: 1px solid #f0f0f0;
-  overflow: hidden;
+  overflow: hidden !important;
+  z-index: 999;
+}
+
+/* 覆盖 Ant Design 的默认样式 */
+.sider :deep(.ant-layout-sider) {
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+/* 确保 Ant Design sider 内部容器也使用 flex */
+.sider :deep(.ant-layout-sider-children) {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+/* 包装容器 */
+.sider-wrapper {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
 }
 
 .sider-content {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  flex: 1 1 auto;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  height: 0; /* 配合 flex: 1 使用，确保可以正确计算高度 */
   min-height: 0; /* 确保可以收缩 */
-  padding-bottom: 48px; /* 为底部按钮留出空间 */
+  /* 确保滚动条始终可见且可用 */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  position: relative;
+}
+
+/* 自定义滚动条样式（Webkit浏览器） */
+.sider-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sider-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.sider-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 3px;
+}
+
+.sider-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .sider-trigger {
   height: 48px;
   min-height: 48px;
+  max-height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -417,12 +510,11 @@ const resetChangePasswordForm = () => {
   border-top: 1px solid #f0f0f0;
   transition: background-color 0.3s;
   flex-shrink: 0;
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-grow: 0;
+  position: relative;
   z-index: 10;
   background-color: #fff;
+  width: 100%;
 }
 
 .sider-trigger:hover {
@@ -447,6 +539,15 @@ const resetChangePasswordForm = () => {
 /* 菜单样式优化 */
 .sider :deep(.ant-menu) {
   border-right: none;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* 确保菜单容器不会限制滚动 */
+.sider :deep(.ant-menu-root) {
+  height: auto !important;
+  overflow: visible !important;
 }
 
 .sider :deep(.ant-menu-item),

@@ -275,20 +275,34 @@ v1 初版建议覆盖：
 
 > 实际可以随着开发迭代微调，这里作为 v1 初始规划。
 
+### 5.1 目录结构
+
 ```text
 mxcsec-platform/
 ├── Elkeid                   # Elkeid项目代码
 ├── cmd/
-│   ├── server/              # server 主程序入口
-│   ├── agent/               # agent 主程序入口
+│   ├── server/
+│   │   ├── manager/         # Manager HTTP API Server 主程序入口
+│   │   └── agentcenter/     # AgentCenter gRPC Server 主程序入口
+│   ├── agent/               # Agent 主程序入口
 │   └── tools/               # 开发辅助工具（如策略转换、导入导出工具）
 ├── internal/
 │   ├── server/
-│   │   ├── api/             # gRPC 接口
-│   │   ├── biz/             # 业务逻辑（策略、任务、结果聚合等）
-│   │   ├── dao/             # 数据访问（MySQL/PG 等）
-│   │   ├── model/           # 领域模型
-│   │   └── bootstrap/       # server 启动初始化
+│   │   ├── manager/         # Manager 相关代码
+│   │   │   ├── api/         # HTTP API 处理器
+│   │   │   ├── biz/         # 业务逻辑（基线得分计算、任务管理等）
+│   │   │   ├── router/      # 路由配置（独立维护，main.go 更简洁）
+│   │   │   └── middleware/  # HTTP 中间件（日志、CORS 等）
+│   │   ├── agentcenter/     # AgentCenter 相关代码
+│   │   │   ├── transfer/    # Transfer 服务实现
+│   │   │   ├── service/     # 业务逻辑（任务调度、策略匹配等）
+│   │   │   ├── server/      # gRPC Server 创建和配置
+│   │   │   └── scheduler/   # 任务调度器
+│   │   ├── config/          # 配置管理
+│   │   ├── database/        # 数据库连接
+│   │   ├── logger/          # 日志初始化
+│   │   ├── model/           # 数据模型
+│   │   └── migration/       # 数据库迁移
 │   └── agent/
 │       ├── core/            # Agent 核心：配置、插件管理、任务调度
 │       ├── plugin/          # 插件管理（生命周期、Pipe 通信）
@@ -328,8 +342,29 @@ mxcsec-platform/
 │   └── elkeid-notes/        # Elkeid 研究笔记
 └── .cursor/
     └── rules/
-        └── baseline-security.mdc  # 本项目的 Cursor 规则文件
+        └── common.mdc  # 本项目的 Cursor 规则文件
 ```
+
+### 5.2 代码组织原则
+
+**遵循 Go 最佳实践，保持代码结构清晰：**
+
+1. **main.go 保持简洁**：
+   - `cmd/server/manager/main.go`：只负责启动逻辑（调用初始化包、设置路由、启动服务、信号处理）
+   - `cmd/server/agentcenter/main.go`：只负责启动逻辑（调用初始化包、启动后台服务、启动 gRPC Server、信号处理）
+   - 所有初始化逻辑提取到独立的 `setup` 包中
+
+2. **模块化设计**：
+   - `internal/server/manager/setup/`：Manager 服务初始化逻辑（配置加载、日志、数据库、业务服务等）
+   - `internal/server/manager/router/`：所有 HTTP 路由配置
+   - `internal/server/manager/middleware/`：HTTP 中间件
+   - `internal/server/agentcenter/setup/`：AgentCenter 服务初始化逻辑（配置加载、日志、数据库、gRPC Server 等）
+   - `internal/server/agentcenter/server/`：gRPC Server 创建和配置
+   - `internal/server/agentcenter/scheduler/`：任务调度器
+
+3. **编译隔离**：
+   - Agent、AgentCenter、Manager 独立编译，不会相互包含代码
+   - 每个组件只包含自己需要的依赖
 
 ---
 
@@ -422,7 +457,7 @@ mxcsec-platform/
 - [前端 API 集成测试](docs/testing/frontend-api-integration-test.md) - 前端 API 集成测试指南
 - [验证清单](docs/testing/verification-checklist.md) - 功能验证清单
 
-### 8.3 其他文档
+### 8.4 其他文档
 
 - [TODO 列表](docs/TODO.md) - 项目开发任务和进度
 - [下一步计划](docs/NEXT_STEPS.md) - 后续开发计划

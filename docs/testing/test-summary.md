@@ -82,7 +82,7 @@
 3. `docs/testing/test-summary.md` - 测试总结（本文档）
 
 ### 创建的脚本
-1. `scripts/test-frontend-api.sh` - API 端点测试脚本
+1. API 端点测试 - 使用 curl 或 Postman 手动测试
 
 ## 更新的文档
 
@@ -97,7 +97,7 @@
 - `docs/testing/frontend-api-integration-test.md` - 测试文档
 - `docs/testing/verification-checklist.md` - 验证清单
 - `docs/testing/test-summary.md` - 测试总结
-- `scripts/test-frontend-api.sh` - 测试脚本
+- API 端点测试 - 使用 curl 或 Postman
 
 ### 修改文件
 - `ui/src/api/hosts.ts` - 添加了 `getMetrics` 方法
@@ -123,7 +123,7 @@
 
 3. **API 端点测试：** 可使用测试脚本
    ```bash
-   ./scripts/test-frontend-api.sh
+   # 使用 curl 或 Postman 手动测试 API 端点
    ```
 
 ### 手动验证

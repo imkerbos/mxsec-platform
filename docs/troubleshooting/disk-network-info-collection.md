@@ -8,13 +8,7 @@
 
 ### 1. 检查数据库字段是否存在
 
-运行检查脚本：
-
-```bash
-./scripts/check-disk-network-info.sh
-```
-
-或者手动检查：
+手动检查数据库字段：
 
 ```sql
 -- 检查字段是否存在
@@ -190,10 +184,10 @@ s.logger.Info("处理心跳",
 
 ```bash
 # 检查所有主机
-./scripts/check-disk-network-info.sh
+# 使用 SQL 查询检查字段（见下方 SQL 示例）
 
 # 检查特定主机
-./scripts/check-disk-network-info.sh your_host_id
+# 使用 SQL 查询检查字段（见下方 SQL 示例） your_host_id
 ```
 
 ### 3. 直接查询数据库
@@ -230,4 +224,4 @@ WHERE host_id = 'your_host_id';
 - Agent 使用示例：`internal/agent/heartbeat/heartbeat_example.go`
 - Server 心跳处理：`internal/server/agentcenter/transfer/service.go`
 - 前端展示组件：`ui/src/views/Hosts/components/HostOverview.vue`
-- 检查脚本：`scripts/check-disk-network-info.sh`
+- 使用 SQL 查询检查数据库字段（见本文档第1节）

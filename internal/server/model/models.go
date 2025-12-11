@@ -26,5 +26,8 @@ var (
 		&HostMetric{},
 		&HostMetricHourly{},
 		&BusinessLine{},
+		&SystemConfig{},
+		&Notification{},
+		&Alert{},
 	}
 )

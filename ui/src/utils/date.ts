@@ -3,7 +3,7 @@
  */
 
 /**
- * 格式化日期时间，显示为简洁格式
+ * 格式化日期时间，显示为完整格式
  * @param dateStr ISO 8601 格式的日期字符串
  * @returns 格式化后的日期字符串，格式：YYYY-MM-DD HH:mm
  */
@@ -20,13 +20,32 @@ export const formatDateTime = (dateStr: string | null | undefined): string => {
     const hours = String(date.getHours()).padStart(2, '0')
     const minutes = String(date.getMinutes()).padStart(2, '0')
     
-    // 如果是今年，只显示月-日 时:分
-    const currentYear = new Date().getFullYear()
-    if (year === currentYear) {
-      return `${month}-${day} ${hours}:${minutes}`
-    }
+    // 始终显示完整日期时间格式：YYYY-MM-DD HH:mm
+    return `${year}-${month}-${day} ${hours}:${minutes}`
+  } catch (error) {
+    console.error('日期格式化失败:', error)
+    return '-'
+  }
+}
+
+/**
+ * 格式化完整日期时间，始终显示年份
+ * @param dateStr ISO 8601 格式的日期字符串
+ * @returns 格式化后的日期字符串，格式：YYYY-MM-DD HH:mm
+ */
+export const formatFullDateTime = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '-'
+  
+  try {
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return '-'
     
-    // 否则显示完整日期
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    
     return `${year}-${month}-${day} ${hours}:${minutes}`
   } catch (error) {
     console.error('日期格式化失败:', error)

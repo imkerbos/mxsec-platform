@@ -17,7 +17,13 @@
     <div class="login-right">
       <div class="login-content">
         <div class="login-header">
-          <h1>登录 矩阵云安全平台</h1>
+          <img
+            v-if="siteConfigStore.siteLogo"
+            :src="siteConfigStore.siteLogo"
+            alt="Logo"
+            class="login-logo"
+          />
+          <h1>登录 {{ siteConfigStore.siteName }}</h1>
         </div>
 
         <a-form
@@ -67,21 +73,28 @@
 
       <!-- 页脚 -->
       <div class="login-footer">
-        矩阵云安全平台
+        {{ siteConfigStore.siteName }}
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, h } from 'vue'
+import { ref, reactive, h, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { UserOutlined, LockOutlined } from '@ant-design/icons-vue'
 import { useAuthStore } from '@/stores/auth'
+import { useSiteConfigStore } from '@/stores/site-config'
 import type { Rule } from 'ant-design-vue/es/form'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const siteConfigStore = useSiteConfigStore()
+
+// 初始化站点配置
+onMounted(() => {
+  siteConfigStore.init()
+})
 
 const loading = ref(false)
 const error = ref('')
@@ -242,6 +255,13 @@ const handleLogin = async () => {
   font-weight: 600;
   color: #001529;
   letter-spacing: 0.5px;
+}
+
+.login-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin-bottom: 16px;
 }
 
 .login-form {

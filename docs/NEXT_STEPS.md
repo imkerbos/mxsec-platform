@@ -47,7 +47,7 @@
 - `plugins/baseline/config/examples/ssh-baseline.json`
 - `plugins/baseline/config/examples/password-policy.json`
 - `plugins/baseline/config/examples/file-permissions.json`
-- `scripts/test-baseline-rules.sh`（可选）
+- 使用端到端测试验证规则执行（可选）
 
 ---
 
@@ -431,7 +431,7 @@ func TestFileKVChecker(t *testing.T) {
 
 3. 编写简单的测试脚本验证规则：
    ```bash
-   # scripts/test-baseline-rules.sh
+   # 使用端到端测试验证规则执行
    # 使用 go run 直接运行 baseline plugin，传入策略文件
    ```
 

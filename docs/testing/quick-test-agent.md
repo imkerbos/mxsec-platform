@@ -20,11 +20,20 @@
 
 ## 快速启动方式
 
-### 方式1：使用 Docker 方式（推荐，适用于 macOS/Windows）
+### 方式1：使用 Docker Compose（推荐，适用于 macOS/Windows/Linux）
 
 ```bash
-# 使用 Docker 方式启动测试 Agent
-./scripts/docker-test-agent.sh
+# 进入 Docker Compose 目录
+cd deploy/docker-compose
+
+# 启动 Agent 容器
+docker-compose up -d agent
+
+# 查看日志
+docker-compose logs -f agent
+
+# 停止 Agent
+docker-compose stop agent
 ```
 
 **优点：**
@@ -33,40 +42,11 @@
 - ✅ 环境隔离，不影响本地系统
 - ✅ 自动处理依赖和配置
 
-**脚本会自动：**
-1. 检查 Docker 是否运行
-2. 检查 Server 服务是否运行（如未运行会提示启动）
-3. 构建 Agent Docker 镜像
-4. 启动 Agent 容器
-5. 显示实时日志
-
-**查看日志：**
-```bash
-cd deploy/docker-compose
-docker-compose logs -f agent
-```
-
-**停止 Agent：**
-```bash
-cd deploy/docker-compose
-docker-compose stop agent
-```
-
-### 方式2：使用快速启动脚本（Linux 系统）
+### 方式2：手动构建和启动（Linux 系统）
 
 ```bash
-# 使用默认 Server 地址 (localhost:6751)
-./scripts/quick-test-agent.sh
-
-# 或指定 Server 地址
-BLS_SERVER_HOST=your-server:6751 ./scripts/quick-test-agent.sh
-```
-
-脚本会自动：
-1. 检查 Agent 代码是否存在
-2. 构建 Agent 二进制文件（如果不存在）
-3. 创建必要的目录结构
-4. 启动 Agent
+# 使用 Makefile 构建 Agent
+make build-agent SERVER_HOST=localhost:6751 VERSION=dev-test
 
 ### 方式3：手动构建和启动（Linux 系统）
 

@@ -102,7 +102,7 @@ go test ./...
 cd ui && npm run test
 
 # API 集成测试
-./scripts/test-frontend-api.sh
+# 使用 curl 或 Postman 手动测试 API 端点
 ```
 
 ### 4. 提交代码
@@ -164,7 +164,7 @@ cd tests/e2e
 go test -v
 
 # 运行前端 API 测试
-./scripts/test-frontend-api.sh
+# 使用 curl 或 Postman 手动测试 API 端点
 ```
 
 ## 调试
