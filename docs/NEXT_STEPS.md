@@ -10,13 +10,18 @@
 1. **基础设施**：插件 SDK、Protobuf 定义、代码生成
 2. **Agent 核心**：主程序、配置管理、日志系统、连接管理、传输模块、心跳模块、插件管理
 3. **Baseline Plugin**：插件入口、策略加载解析、OS 匹配、规则执行框架
-4. **检查器实现**：`file_kv`、`file_permission`、`file_line_match`、`command_exec`、`sysctl`、`service_status`
+4. **检查器实现**：`file_kv`、`file_permission`、`file_line_match`、`command_exec`、`sysctl`、`service_status`、`file_owner`、`package_installed`
+5. **Server 端**：AgentCenter（gRPC Server）、Manager（HTTP API Server）、数据库模型、任务调度
+6. **前端 UI**：主机列表、主机详情、策略管理、任务管理、Dashboard、用户认证
+7. **新功能模块**：字段状态显示、系统配置管理、告警管理、业务线管理、通知管理
+8. **项目优化**：清理过时文档和脚本，优化项目结构
 
 ### 🔄 待完成
-1. Baseline Plugin 示例规则（SSH、密码策略等）
-2. 单元测试和集成测试
-3. 更多检查器（`file_owner`、`package_installed` 等）
-4. Server 端开发（AgentCenter、Manager、ServiceDiscovery）
+1. 扩展基线规则覆盖范围（账号、权限、日志、sysctl 等）
+2. 完善多 OS 适配与测试
+3. 与现有告警体系打通（Webhook、Lark、邮件等）
+4. 编写部署文档与操作手册
+5. 中间件基线检查（Nginx、Redis、MySQL 等）
 
 ---
 

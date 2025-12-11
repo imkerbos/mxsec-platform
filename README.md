@@ -422,6 +422,12 @@ mxcsec-platform/
 - [x] 实现用户认证系统（JWT Token）。
 - [x] 完善开发文档和故障排查指南。
 - [x] 改进用户体验（错误提示、操作反馈）。
+- [x] 实现字段状态显示功能（区分"有值"、"未采集"、"无数据"状态）。
+- [x] 实现系统配置管理（站点配置、Logo上传、Kubernetes镜像配置）。
+- [x] 实现告警管理模块（告警列表、告警详情）。
+- [x] 实现业务线管理模块（业务线列表、业务线详情）。
+- [x] 实现通知管理模块（通知列表、通知详情）。
+- [x] 清理过时文档和脚本，优化项目结构。
 
 ### v1.0 – OS 基线稳定版本
 
@@ -457,7 +463,12 @@ mxcsec-platform/
 - [前端 API 集成测试](docs/testing/frontend-api-integration-test.md) - 前端 API 集成测试指南
 - [验证清单](docs/testing/verification-checklist.md) - 功能验证清单
 
-### 8.4 其他文档
+### 8.4 功能文档
+
+- [字段状态显示说明](docs/features/field-status-display.md) - 字段状态显示功能说明
+- [系统配置路由说明](docs/deployment/system-config-routes.md) - 系统配置 API 路由注册说明
+
+### 8.5 其他文档
 
 - [TODO 列表](docs/TODO.md) - 项目开发任务和进度
 - [下一步计划](docs/NEXT_STEPS.md) - 后续开发计划
