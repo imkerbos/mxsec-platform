@@ -973,26 +973,28 @@ GET /api/v1/dashboard/stats
 
 ### 当前工作
 
-**日期**: 2025-12-11
+**日期**: 2025-12-12
 
 **已完成任务**:
-1. ✅ [P0] 修复 API 问题
-   - POST /api/v1/policies: 移除 CheckConfig 的 required 标记，添加手动验证
-   - POST /api/v1/tasks/:task_id/run: 改为返回 HTTP 409 Conflict（而非 400）
-   - 添加了 4 个新的集成测试用例来验证修复
 
-2. ✅ [P0] 创建中文版 CLAUDE.md
-   - 包含完整的技术栈说明
-   - 项目结构和代码组织规范
-   - 开发、测试、部署流程
-   - 任务追踪和工作流程
+1. ✅ [P0] 完善 Baseline 任务执行流程
+   - Baseline Plugin 添加 task_id 到检测结果 (`plugins/baseline/main.go`)
+   - Baseline Plugin 发送任务完成信号 (DataType=8001)
+   - Server 端处理任务完成信号并更新任务状态 (`internal/server/agentcenter/transfer/service.go`)
+   - Server 端检测结果去重（UPSERT 机制）
+   - 完整的任务状态流转：pending → running → completed/failed
+
+2. ✅ [P1] 创建 CMDB 对接文档
+   - 完整对接指南：`docs/CMDB_INTEGRATION.md` (36KB, 1400+ 行)
+   - 快速开始指南：`docs/CMDB_INTEGRATION_QUICKSTART.md` (12KB)
+   - 包含 Python/Java 示例代码、API 文档、数据模型、故障排查
 
 **当前任务**:
 1. ⏳ [P1] 完善基线规则库（扩展 SSH、密码策略、文件权限等规则）
 2. ⏳ [P2] 资产采集完整性验证
 3. ⏳ [P2] 告警系统集成
 
-**最后更新时间**: 2025-12-11 18:50
+**最后更新时间**: 2025-12-12 10:00
 
 ---
 
