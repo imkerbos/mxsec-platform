@@ -1038,9 +1038,11 @@ npm run dev
 
 ### 新功能开发
 
-1. **创建分支**
+1. **从 main 分支拉取最新代码并创建新分支**
    ```bash
-   git checkout -b feat/新功能名
+   git checkout main
+   git pull origin main
+   git checkout -b feat/新功能名   # 分支名不能与之前的分支重复
    ```
 
 2. **更新 TODO.md**
@@ -1076,21 +1078,43 @@ npm run dev
    - 更新 TODO.md，标记为 `✅ 已完成`
    - 更新 CLAUDE.md 的"当前工作"部分
 
-8. **Push & PR**
+8. **Push 到远程并合并到 main**
    ```bash
+   # 推送当前分支到远程
    git push origin feat/新功能名
+
+   # 如有未提交的改动，先 stash
+   git stash push -m "WIP: 未完成的改动"
+
+   # 切换到 main 分支并拉取最新
+   git checkout main
+   git pull origin main
+
+   # 合并功能分支到 main
+   git merge feat/新功能名 -m "Merge branch 'feat/新功能名' into main"
+
+   # 推送 main 到远程
+   git push origin main
+
+   # 如需要，恢复 stash 的改动
+   git stash pop
    ```
+
+9. **后续工作**
+   - 保持在 main 分支，下次开发时再创建新分支
 
 ### Bug 修复
 
-1. **从 TODO.md 中选择**
-   - 找到 "已知问题" 部分的 bug
-   - 标记为 `🔄 进行中`
-
-2. **创建分支**
+1. **从 main 分支拉取最新代码并创建修复分支**
    ```bash
+   git checkout main
+   git pull origin main
    git checkout -b fix/bug描述
    ```
+
+2. **从 TODO.md 中选择**
+   - 找到 "已知问题" 部分的 bug
+   - 标记为 `🔄 进行中`
 
 3. **修复 + 测试**
    - 编写复现测试用例
@@ -1102,7 +1126,16 @@ npm run dev
    git commit -m "fix: bug描述 - 修复 XXX 问题"
    ```
 
-5. **更新 TODO.md**
+5. **Push 到远程并合并到 main**
+   ```bash
+   git push origin fix/bug描述
+   git checkout main
+   git pull origin main
+   git merge fix/bug描述
+   git push origin main
+   ```
+
+6. **更新 TODO.md**
    - 标记为 `✅ 已完成`
    - 添加完成说明
 
