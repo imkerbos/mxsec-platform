@@ -1115,6 +1115,47 @@ npm run dev
    - 标记为 `✅ 已完成`
    - 添加完成说明
 
+### Git 提交规则
+
+**重要**: Claude Code 不直接执行 git commit，而是提供命令和 commit 信息供用户自行提交。
+
+**工作流程**:
+1. 用户请求提交代码时，Claude 分析改动内容
+2. Claude 提供完整的 git 命令和 commit message
+3. 用户自行复制执行命令
+
+**Commit Message 格式**:
+```
+<type>: <简短描述>
+
+- 详细改动点1
+- 详细改动点2
+- ...
+```
+
+**Type 类型**:
+- `feat`: 新功能
+- `fix`: Bug 修复
+- `refactor`: 重构（不改变功能）
+- `docs`: 文档更新
+- `style`: 代码格式调整
+- `test`: 测试相关
+- `chore`: 构建/工具相关
+
+**示例输出**:
+```bash
+# Claude 提供的命令
+git add -A
+git commit -m "feat: 实现组件管理系统
+
+- 新增 Component/Version/Package 数据模型
+- 实现组件 CRUD API
+- 添加版本发布和包上传功能
+- 前端组件管理页面"
+
+git push origin main
+```
+
 ---
 
 ## 参考资源
