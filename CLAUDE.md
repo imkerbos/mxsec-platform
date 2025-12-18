@@ -2,7 +2,7 @@
 
 本文档为 Claude Code 在本项目中的工作指南，包含完整的技术栈、开发规范、测试流程和任务追踪。
 
-**最后更新**: 2025-12-11
+**最后更新**: 2025-12-18
 **当前版本**: v1.0.0 (开发中)
 
 ---
@@ -432,31 +432,59 @@ if err != nil {
 return fmt.Errorf("查询主机 %s 失败: %w", hostID, err)
 ```
 
-#### 5. 日志规范
+#### 5. 日志规范（必须遵循）
+
+**使用 Zap 结构化日志**，禁止使用 `fmt.Println`、`log.Println` 等。
 
 ```go
-// 使用 Zap 结构化日志
+// ✅ 正确用法 - 结构化日志，带上下文字段
 logger.Info("任务开始执行",
     zap.String("task_id", taskID),
     zap.String("policy_id", policyID),
     zap.Int("host_count", len(hostIDs)),
 )
 
-logger.Error("任务执行失败",
-    zap.String("task_id", taskID),
+logger.Error("查询主机失败",
+    zap.String("host_id", hostID),
     zap.Error(err),
 )
 
-logger.Debug("详细日志",
-    zap.Any("data", complexObject),
+logger.Warn("配置不存在，使用默认值",
+    zap.String("config_key", key),
+    zap.Any("default_value", defaultValue),
 )
+
+logger.Debug("详细日志",
+    zap.Any("request", req),
+    zap.Any("response", resp),
+)
+
+// ❌ 错误用法
+fmt.Printf("Task %s started\n", taskID)
+log.Println("Error:", err)
 ```
 
-**日志级别**:
-- `Debug`: 开发调试
-- `Info`: 关键流程（任务开始/结束、连接建立）
-- `Warn`: 警告（超时、重试等）
-- `Error`: 错误（操作失败）
+**日志级别使用规范**:
+| 级别 | 使用场景 | 示例 |
+|------|---------|------|
+| `Debug` | 开发调试、详细信息 | 函数参数、中间结果、请求/响应内容 |
+| `Info` | 关键业务流程 | 任务开始/完成、连接建立、配置加载、重要操作 |
+| `Warn` | 潜在问题、降级处理 | 配置缺失使用默认值、重试、性能警告 |
+| `Error` | 操作失败、需要关注 | 数据库错误、外部服务失败、业务逻辑错误 |
+
+**必须包含的上下文字段**:
+- 主机相关：`host_id`、`hostname`、`ip`
+- 任务相关：`task_id`、`policy_id`
+- 告警相关：`alert_id`、`rule_id`、`severity`
+- 通知相关：`notification_id`
+- 用户相关：`user_id`、`username`
+
+**日志记录时机**:
+- ✅ 操作开始时（Info）
+- ✅ 操作成功完成时（Info/Debug）
+- ✅ 操作失败时（Error）
+- ✅ 使用降级/默认值时（Warn）
+- ✅ 关键业务数据变更时（Info）
 
 #### 6. 单元测试规范
 
@@ -543,6 +571,141 @@ if err := c.ShouldBindJSON(&req); err != nil {
 | 409 | Conflict | 资源冲突（如 ID 重复） |
 | 500 | Internal Error | 服务器错误 |
 
+#### 8. 统一响应工具函数（必须使用）
+
+**文件位置**: `internal/server/manager/api/response.go`
+
+所有 HTTP API 返回**必须使用统一的响应工具函数**，禁止直接使用 `c.JSON()`。
+
+```go
+// ✅ 正确用法 - 使用工具函数
+func (h *Handler) GetResource(c *gin.Context) {
+    resource, err := h.service.GetResource(id)
+    if err != nil {
+        if errors.Is(err, gorm.ErrRecordNotFound) {
+            NotFound(c, "资源不存在")
+            return
+        }
+        h.logger.Error("查询资源失败", zap.String("id", id), zap.Error(err))
+        InternalError(c, "查询资源失败")
+        return
+    }
+    Success(c, resource)
+}
+
+// 分页数据
+func (h *Handler) ListResources(c *gin.Context) {
+    total, items, err := h.service.ListResources(page, pageSize)
+    if err != nil {
+        h.logger.Error("查询列表失败", zap.Error(err))
+        InternalError(c, "查询失败")
+        return
+    }
+    SuccessPaginated(c, total, items)
+}
+
+// 创建资源
+func (h *Handler) CreateResource(c *gin.Context) {
+    var req CreateRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        BadRequest(c, "请求参数错误: " + err.Error())
+        return
+    }
+    resource, err := h.service.Create(&req)
+    if err != nil {
+        h.logger.Error("创建失败", zap.Error(err))
+        InternalError(c, "创建失败")
+        return
+    }
+    Created(c, resource)
+}
+
+// ❌ 错误用法 - 直接使用 c.JSON
+func (h *Handler) GetResource(c *gin.Context) {
+    c.JSON(http.StatusOK, gin.H{
+        "code": 0,
+        "data": resource,
+    })
+}
+```
+
+**可用的响应函数列表**:
+
+| 函数 | HTTP 状态码 | 用途 |
+|------|------------|------|
+| `Success(c, data)` | 200 | 成功响应，返回数据 |
+| `SuccessWithMessage(c, msg, data)` | 200 | 成功响应，带消息和数据 |
+| `SuccessMessage(c, msg)` | 200 | 成功响应，仅返回消息 |
+| `SuccessPaginated(c, total, items)` | 200 | 成功响应，分页数据 |
+| `Created(c, data)` | 201 | 创建成功 |
+| `BadRequest(c, msg)` | 400 | 请求参数错误 |
+| `Unauthorized(c, msg)` | 401 | 未认证 |
+| `Forbidden(c, msg)` | 403 | 无权限 |
+| `NotFound(c, msg)` | 404 | 资源不存在 |
+| `Conflict(c, msg)` | 409 | 资源冲突（如 ID 重复） |
+| `InternalError(c, msg)` | 500 | 服务器内部错误 |
+
+#### 9. 数据库查询规范
+
+```go
+// ✅ 正确用法 - 使用预加载避免 N+1 问题
+var alerts []model.Alert
+db.Preload("Host").Preload("Rule").Find(&alerts)
+
+// ✅ 正确用法 - 使用事务保证数据一致性
+err := db.Transaction(func(tx *gorm.DB) error {
+    if err := tx.Create(&policy).Error; err != nil {
+        return err
+    }
+    for _, rule := range rules {
+        rule.PolicyID = policy.ID
+        if err := tx.Create(&rule).Error; err != nil {
+            return err
+        }
+    }
+    return nil
+})
+
+// ✅ 正确用法 - 分页查询
+var total int64
+var items []model.Host
+db.Model(&model.Host{}).Count(&total)
+db.Offset((page - 1) * pageSize).Limit(pageSize).Find(&items)
+
+// ❌ 错误用法 - 循环中查询（N+1 问题）
+for _, alert := range alerts {
+    var host model.Host
+    db.First(&host, "host_id = ?", alert.HostID)  // 每次循环都查询！
+}
+```
+
+#### 10. 配置管理规范
+
+```go
+// ✅ 正确用法 - 从配置文件读取
+dbHost := viper.GetString("database.host")
+dbPort := viper.GetInt("database.port")
+timeout := viper.GetDuration("server.timeout")
+
+// ✅ 正确用法 - 使用常量定义默认值
+const (
+    DefaultPageSize    = 20
+    DefaultTimeout     = 30 * time.Second
+    DefaultMaxRetries  = 3
+)
+
+// ✅ 正确用法 - 配置结构体
+type ServerConfig struct {
+    Host    string        `mapstructure:"host"`
+    Port    int           `mapstructure:"port"`
+    Timeout time.Duration `mapstructure:"timeout"`
+}
+
+// ❌ 错误用法 - 硬编码配置
+db, _ := gorm.Open(mysql.Open("root:password@tcp(localhost:3306)/mxsec"))
+http.ListenAndServe(":8080", router)  // 端口不应硬编码
+```
+
 ### TypeScript / Vue 代码规范
 
 #### 1. 文件结构
@@ -590,31 +753,112 @@ interface IHost {
 }
 ```
 
-#### 3. API 调用规范
+#### 3. API 调用规范（必须遵循）
+
+**文件位置**: `ui/src/api/*.ts`
+
+所有 API 调用必须封装在 `src/api` 目录中，禁止在组件中直接调用 axios。
 
 ```typescript
-// ✅ 正确 - 封装在 api 模块中
-// src/api/hosts.ts
-import axios from 'axios'
+// ✅ 正确用法 - 统一封装在 api 目录
+// ui/src/api/hosts.ts
+import { apiClient } from './client'
 
-export const getHosts = async (page: number, limit: number) => {
-  try {
-    const { data } = await axios.get('/api/v1/hosts', {
-      params: { page, limit },
-    })
-    return data
-  } catch (error) {
-    throw new Error(`获取主机列表失败: ${error.message}`)
-  }
+// 定义类型
+export interface Host {
+  id: string
+  hostname: string
+  ip: string
+  os_family: string
+  baseline_score: number
+}
+
+export interface ListHostsParams {
+  page: number
+  pageSize: number
+  keyword?: string
+  status?: string
+}
+
+// API 方法封装
+export const hostsApi = {
+  // 获取列表
+  getList: (params: ListHostsParams) => {
+    return apiClient.get<{ total: number; items: Host[] }>('/hosts', { params })
+  },
+  
+  // 获取详情
+  getById: (id: string) => {
+    return apiClient.get<Host>(`/hosts/${id}`)
+  },
+  
+  // 创建
+  create: (data: Partial<Host>) => {
+    return apiClient.post<Host>('/hosts', data)
+  },
+  
+  // 更新
+  update: (id: string, data: Partial<Host>) => {
+    return apiClient.put<Host>(`/hosts/${id}`, data)
+  },
+  
+  // 删除
+  delete: (id: string) => {
+    return apiClient.delete(`/hosts/${id}`)
+  },
 }
 
 // 在组件中使用
-import { getHosts } from '@/api/hosts'
+import { hostsApi } from '@/api/hosts'
+import { message } from 'ant-design-vue'
 
-const hosts = await getHosts(1, 10)
+const hosts = ref<Host[]>([])
+const loading = ref(false)
 
-// ❌ 错误 - 直接在组件中调用
+const loadHosts = async () => {
+  loading.value = true
+  try {
+    const { data } = await hostsApi.getList({ page: 1, pageSize: 10 })
+    hosts.value = data.items
+  } catch (error) {
+    console.error('加载主机列表失败:', error)
+    message.error('加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+// ❌ 错误用法 - 直接在组件中调用 axios
 const hosts = await axios.get('/api/v1/hosts')
+```
+
+#### 3.1 前端错误处理规范
+
+```typescript
+// ✅ 正确用法 - 统一错误处理
+const handleSubmit = async () => {
+  try {
+    await hostsApi.create(formData)
+    message.success('创建成功')
+    router.push('/hosts')
+  } catch (error: any) {
+    console.error('创建失败:', error)
+    // 根据错误类型显示不同消息
+    if (error.response?.status === 409) {
+      message.error('资源已存在')
+    } else if (error.response?.status === 400) {
+      message.error(error.response?.data?.message || '参数错误')
+    } else {
+      message.error('操作失败，请重试')
+    }
+  }
+}
+
+// ❌ 错误用法 - 忽略错误
+const loadData = async () => {
+  const data = await hostsApi.getList({ page: 1, pageSize: 10 })  // 没有 try-catch
+  hosts.value = data.items
+}
 ```
 
 #### 4. 类型定义
@@ -1158,6 +1402,204 @@ git push origin main
 
 ---
 
+## 工具函数速查表
+
+> 开发时快速查阅，避免重复造轮子。
+
+### 后端工具函数
+
+#### API 响应 (`internal/server/manager/api/response.go`)
+
+| 函数 | 用途 | 示例 |
+|------|------|------|
+| `Success(c, data)` | 返回成功数据 | `Success(c, host)` |
+| `SuccessWithMessage(c, msg, data)` | 返回成功+消息+数据 | `SuccessWithMessage(c, "更新成功", host)` |
+| `SuccessMessage(c, msg)` | 仅返回成功消息 | `SuccessMessage(c, "删除成功")` |
+| `SuccessPaginated(c, total, items)` | 返回分页数据 | `SuccessPaginated(c, 100, hosts)` |
+| `Created(c, data)` | 创建成功 (201) | `Created(c, newPolicy)` |
+| `BadRequest(c, msg)` | 参数错误 (400) | `BadRequest(c, "ID 不能为空")` |
+| `NotFound(c, msg)` | 资源不存在 (404) | `NotFound(c, "主机不存在")` |
+| `Conflict(c, msg)` | 资源冲突 (409) | `Conflict(c, "ID 已存在")` |
+| `InternalError(c, msg)` | 服务器错误 (500) | `InternalError(c, "数据库错误")` |
+
+#### 日志 (Zap)
+
+```go
+// 常用日志模式
+logger.Info("操作成功", zap.String("id", id))
+logger.Error("操作失败", zap.String("id", id), zap.Error(err))
+logger.Warn("使用默认值", zap.String("key", key), zap.Any("default", val))
+logger.Debug("调试信息", zap.Any("data", obj))
+```
+
+### 前端工具函数
+
+#### API 客户端 (`ui/src/api/client.ts`)
+
+```typescript
+import { apiClient } from '@/api/client'
+
+// GET 请求
+apiClient.get<ResponseType>('/path', { params })
+
+// POST 请求
+apiClient.post<ResponseType>('/path', data)
+
+// PUT 请求
+apiClient.put<ResponseType>('/path', data)
+
+// DELETE 请求
+apiClient.delete('/path')
+```
+
+#### 消息提示 (Ant Design Vue)
+
+```typescript
+import { message } from 'ant-design-vue'
+
+message.success('操作成功')
+message.error('操作失败')
+message.warning('警告信息')
+message.info('提示信息')
+message.loading('加载中...')
+```
+
+### 常用代码模板
+
+#### 后端 API Handler 模板
+
+```go
+// GetXxx 获取资源详情
+func (h *XxxHandler) GetXxx(c *gin.Context) {
+    id := c.Param("id")
+    
+    var item model.Xxx
+    if err := h.db.First(&item, "id = ?", id).Error; err != nil {
+        if err == gorm.ErrRecordNotFound {
+            NotFound(c, "资源不存在")
+            return
+        }
+        h.logger.Error("查询失败", zap.String("id", id), zap.Error(err))
+        InternalError(c, "查询失败")
+        return
+    }
+    
+    Success(c, item)
+}
+
+// ListXxx 获取资源列表
+func (h *XxxHandler) ListXxx(c *gin.Context) {
+    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+    pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+    
+    var total int64
+    var items []model.Xxx
+    
+    query := h.db.Model(&model.Xxx{})
+    
+    if err := query.Count(&total).Error; err != nil {
+        h.logger.Error("查询总数失败", zap.Error(err))
+        InternalError(c, "查询失败")
+        return
+    }
+    
+    offset := (page - 1) * pageSize
+    if err := query.Offset(offset).Limit(pageSize).Find(&items).Error; err != nil {
+        h.logger.Error("查询列表失败", zap.Error(err))
+        InternalError(c, "查询失败")
+        return
+    }
+    
+    SuccessPaginated(c, total, items)
+}
+
+// CreateXxx 创建资源
+func (h *XxxHandler) CreateXxx(c *gin.Context) {
+    var req CreateXxxRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        BadRequest(c, "请求参数错误: " + err.Error())
+        return
+    }
+    
+    item := model.Xxx{
+        // 字段映射
+    }
+    
+    if err := h.db.Create(&item).Error; err != nil {
+        h.logger.Error("创建失败", zap.Error(err))
+        InternalError(c, "创建失败")
+        return
+    }
+    
+    h.logger.Info("资源创建成功", zap.Uint("id", item.ID))
+    Created(c, item)
+}
+```
+
+#### 前端页面模板
+
+```vue
+<template>
+  <div class="page-container">
+    <a-table
+      :columns="columns"
+      :data-source="items"
+      :loading="loading"
+      :pagination="pagination"
+      @change="handleTableChange"
+    />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, reactive } from 'vue'
+import { xxxApi, type Xxx } from '@/api/xxx'
+import { message } from 'ant-design-vue'
+
+const items = ref<Xxx[]>([])
+const loading = ref(false)
+const pagination = reactive({
+  current: 1,
+  pageSize: 20,
+  total: 0,
+})
+
+const columns = [
+  { title: 'ID', dataIndex: 'id' },
+  { title: '名称', dataIndex: 'name' },
+]
+
+const loadData = async () => {
+  loading.value = true
+  try {
+    const { data } = await xxxApi.getList({
+      page: pagination.current,
+      pageSize: pagination.pageSize,
+    })
+    items.value = data.items
+    pagination.total = data.total
+  } catch (error) {
+    console.error('加载数据失败:', error)
+    message.error('加载失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleTableChange = (pag: any) => {
+  pagination.current = pag.current
+  pagination.pageSize = pag.pageSize
+  loadData()
+}
+
+onMounted(() => {
+  loadData()
+})
+</script>
+```
+
+---
+
 ## 参考资源
 
 - **项目 README**: [README.md](README.md)
@@ -1172,5 +1614,5 @@ git push origin main
 
 **文档维护者**: Claude Code
 
-**最后更新**: 2025-12-11 18:30
-**下次更新计划**: 2025-12-12 (API 修复完成后)
+**最后更新**: 2025-12-18
+**更新内容**: 添加统一工具函数规范、API 响应规范、日志规范、代码模板
